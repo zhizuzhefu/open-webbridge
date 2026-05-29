@@ -64,6 +64,16 @@ if ! curl -fSL --progress-bar "$DL/$BIN_ASSET" -o "$BIN"; then
 fi
 chmod +x "$BIN"
 
+# macOS: the release binaries are cross-compiled on Linux and therefore carry no
+# code signature. Apple Silicon refuses to run unsigned binaries ("killed: 9"),
+# so ad-hoc sign it locally and clear the quarantine attribute.
+if [[ "$OS" == "darwin" ]]; then
+  xattr -dr com.apple.quarantine "$BIN" 2>/dev/null || true
+  if command -v codesign >/dev/null 2>&1; then
+    codesign --force --sign - "$BIN" 2>/dev/null || true
+  fi
+fi
+
 # The extension is NOT installed by this script — install it from the Chrome
 # Web Store, or load it unpacked yourself (see the next-steps message below).
 
