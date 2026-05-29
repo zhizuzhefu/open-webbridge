@@ -1,0 +1,71 @@
+name: release
+
+# Build daemon binaries for macOS/Linux (amd64/arm64) and publish them, plus
+# the extension and skill bundles, as a GitHub Release on every v* tag.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Derive version
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build daemon binaries
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          PKG=github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon
+          LDFLAGS="-s -w -X ${PKG}/internal/config.Version=${{ steps.ver.outputs.version }}"
+          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
+            os="${target%/*}"; arch="${target#*/}"
+            out="dist/open-webbridge-${os}-${arch}"
+            echo "==> $out"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+              go build -trimpath -ldflags "$LDFLAGS" -o "$out" ./open-webbridge-daemon
+          done
+          (cd dist && shasum -a 256 open-webbridge-* > SHA256SUMS.txt)
+
+      - name: Build extension (minified, Chrome Web Store compliant)
+        run: |
+          set -euo pipefail
+          cd open-webbridge-extension
+          npm install --no-audit --no-fund
+          npm run build          # dist/ — bundled + minified (no obfuscation; CWS policy)
+
+      - name: Package extension and skill
+        run: |
+          set -euo pipefail
+          (cd open-webbridge-extension/dist && zip -r -q "$GITHUB_WORKSPACE/dist/open-webbridge-extension.zip" .)
+          tar -C open-webbridge-skill -czf dist/open-webbridge-skill.tar.gz .
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/open-webbridge-darwin-amd64
+            dist/open-webbridge-darwin-arm64
+            dist/open-webbridge-linux-amd64
+            dist/open-webbridge-linux-arm64
+            dist/open-webbridge-extension.zip
+            dist/open-webbridge-skill.tar.gz
+            dist/SHA256SUMS.txt
+          generate_release_notes: true

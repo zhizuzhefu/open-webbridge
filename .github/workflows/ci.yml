@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  daemon:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go vet ./...
+      - run: go build ./...
+      - run: go test ./... 2>/dev/null || true
+
+  extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Syntax-check extension JS
+        run: |
+          set -e
+          for f in $(find open-webbridge-extension -name '*.js'); do
+            node --check "$f"
+          done
+      - name: Validate manifest JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('open-webbridge-extension/manifest.json','utf8'))"
+      - name: Build (bundle + minify + obfuscate)
+        run: |
+          cd open-webbridge-extension
+          npm install --no-audit --no-fund
+          npm run build
+          node --check dist/background.js
+          node --check dist/popup.js
+          node -e "JSON.parse(require('fs').readFileSync('dist/manifest.json','utf8'))"

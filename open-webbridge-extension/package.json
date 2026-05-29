@@ -1,0 +1,17 @@
+{
+  "name": "open-webbridge-extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "description": "Build pipeline for the Open WebBridge extension: bundle, minify, and obfuscate into dist/ for release.",
+  "scripts": {
+    "build": "node build.mjs --mode store --out dist",
+    "build:obfuscated": "node build.mjs --mode release --out dist-obf",
+    "check": "node --check src/background.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2",
+    "javascript-obfuscator": "^4.1.1"
+  }
+}
