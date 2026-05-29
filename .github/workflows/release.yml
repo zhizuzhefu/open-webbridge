@@ -12,7 +12,10 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    # macOS runner so we can ad-hoc codesign the darwin binaries (Apple Silicon
+    # refuses to run unsigned binaries). Go cross-compiles the linux targets
+    # fine from macOS. Ad-hoc signing needs no Apple Developer account.
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -42,6 +45,10 @@ jobs:
             CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
               go build -trimpath -ldflags "$LDFLAGS" -o "$out" ./open-webbridge-daemon
           done
+          # Ad-hoc sign the macOS binaries so Apple Silicon will run them.
+          codesign --force --sign - dist/open-webbridge-darwin-amd64
+          codesign --force --sign - dist/open-webbridge-darwin-arm64
+          codesign --verify --verbose dist/open-webbridge-darwin-arm64
           (cd dist && shasum -a 256 open-webbridge-* > SHA256SUMS.txt)
 
       - name: Build extension (minified, Chrome Web Store compliant)

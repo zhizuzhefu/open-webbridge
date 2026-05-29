@@ -415,6 +415,7 @@ open-webbridge update             # 安装最新版本并重启
 | `start` 报告端口被占用 | 端口被其它程序占用。修改 `config.json` 中的 `port` 后重启,或释放该端口。 |
 | 加载后扩展卡片显示错误 | 重新构建(`npm run build`)并在 `chrome://extensions` 中重载。 |
 | 调用超时 | 用 `open-webbridge logs -n 100` 查看近期活动;无法加载完成的页面会阻塞导航。 |
+| macOS:`killed: 9` / 「无法打开」 | 二进制丢了签名(例如用浏览器下载会被加隔离属性)。重跑安装脚本,或手动修复:`xattr -dr com.apple.quarantine ~/.open-webbridge/bin/open-webbridge && codesign --force --sign - ~/.open-webbridge/bin/open-webbridge`。 |
 
 ## 15. 卸载
 

@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -108,7 +109,20 @@ func InstallBinary(ctx context.Context, version string) (string, error) {
 		_ = os.Remove(tmp)
 		return "", err
 	}
+	signMacOS(target)
 	return target, nil
+}
+
+// signMacOS ad-hoc signs the binary on macOS and clears the quarantine
+// attribute. Apple Silicon refuses to execute unsigned binaries ("killed: 9"),
+// and a freshly downloaded release binary (cross-compiled, unsigned) would be
+// killed on launch without this. Ad-hoc signing needs no Apple Developer account.
+func signMacOS(path string) {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	_ = exec.Command("xattr", "-dr", "com.apple.quarantine", path).Run()
+	_ = exec.Command("codesign", "--force", "--sign", "-", path).Run()
 }
 
 // NOTE: the daemon does not self-host or update the extension — the extension

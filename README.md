@@ -461,6 +461,7 @@ See the full [Privacy Policy](PRIVACY.md).
 | `start` reports the address is in use | Another program holds the port. Change `port` in `config.json` and restart, or free the port. |
 | The extension card shows an error after loading | Rebuild it (`npm run build`) and reload it in `chrome://extensions`. |
 | Tool calls time out | Inspect recent activity with `open-webbridge logs -n 100`; a page that never finishes loading can stall navigation. |
+| macOS: `killed: 9` / "cannot be opened" | The binary lost its signature (e.g. downloaded via a browser, which quarantines it). Re-run the installer, or fix it manually: `xattr -dr com.apple.quarantine ~/.open-webbridge/bin/open-webbridge && codesign --force --sign - ~/.open-webbridge/bin/open-webbridge`. |
 
 ## 15. Uninstalling
 
