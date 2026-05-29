@@ -237,7 +237,7 @@ The command prints a JSON result of the form `{"ok": true, "data": …}` or
 | `version` | Service version. |
 | `extension_connected` | Whether the browser extension is attached. |
 | `extension_version` | Version reported by the extension. |
-| `extension_compatible` | Whether the extension meets the service's minimum version. |
+| `extension_compatible` | Whether the extension's protocol version matches the daemon's. |
 | `uptime_seconds` | Service uptime. |
 
 ## 8. Action reference
@@ -425,10 +425,13 @@ The service also checks for updates once a day and notes availability in its log
 set `auto_update` to `true` to apply updates automatically. The browser extension
 updates through the Chrome Web Store.
 
-The service and extension verify that their versions are compatible when they
-connect. If the extension is older than the service requires, the connection is
-refused with a clear message in the extension popup and instructions return an
-explanatory error; update the extension to resolve this.
+The daemon and the extension are versioned **independently** — they ship on
+separate channels (GitHub Releases and the Chrome Web Store) and their release
+numbers need not match. Compatibility is governed by a small **protocol version**
+that the two exchange on connect; it changes only when the message format changes
+incompatibly. So a routine daemon update never forces an extension update (or
+vice versa). If the protocol versions ever differ, the connection is refused with
+a message telling you which side to update.
 
 ## 13. Security and privacy
 

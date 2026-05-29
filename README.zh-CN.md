@@ -207,7 +207,7 @@ open-webbridge call <action> [--session NAME] [--args '<json>'] [json] \
 | `version` | 服务版本。 |
 | `extension_connected` | 浏览器扩展是否已连接。 |
 | `extension_version` | 扩展上报的版本。 |
-| `extension_compatible` | 扩展是否满足服务的最低版本要求。 |
+| `extension_compatible` | 扩展的协议版本是否与守护进程一致。 |
 | `uptime_seconds` | 服务运行时长。 |
 
 ## 8. 动作参考
@@ -385,8 +385,10 @@ open-webbridge update             # 安装最新版本并重启
 服务也会每日检查更新并在日志中记录是否可用;将 `auto_update` 设为 `true` 可自动应用更新。
 浏览器扩展通过 Chrome 应用商店更新。
 
-服务与扩展在连接时会校验版本兼容性。若扩展版本低于服务要求,连接将被拒绝并在扩展弹窗中
-给出明确提示,指令也会返回说明性错误;升级扩展即可解决。
+守护进程与扩展**各自独立发版**——分别走 GitHub Releases 和 Chrome 应用商店,版本号
+无需一致。兼容性由两者连接时交换的一个小小的**协议版本**决定,只有在消息格式发生
+不兼容变更时才会改动。因此**日常更新守护进程不会强制更新扩展**(反之亦然)。一旦协议
+版本不一致,连接会被拒绝,并提示你该升级哪一侧。
 
 ## 13. 安全与隐私
 

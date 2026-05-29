@@ -11,9 +11,10 @@ const RECONNECT_MS = 5000;
 // longer so two browsers don't fight; recovery still happens once the other
 // disconnects.
 const REJECTED_RECONNECT_MS = 30000;
-// The oldest daemon this extension is willing to drive.
-// Bump in lockstep with any breaking wire-protocol change.
-const MIN_DAEMON_VERSION = "1.0.0";
+// Wire-protocol contract with the daemon. The extension and daemon are
+// compatible iff their PROTOCOL_VERSION matches; their release versions are
+// independent. Bump (on BOTH sides) only on an incompatible message-format change.
+const PROTOCOL_VERSION = 1;
 const STORE = { url: "owb_ws_url", reconnect: "owb_should_reconnect", notice: "owb_notice" };
 
 let socket = null;
@@ -36,19 +37,6 @@ export function getNotice() {
   return notice;
 }
 
-// cmpV compares dotted versions: -1 / 0 / 1.
-function cmpV(a, b) {
-  const pa = String(a).replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
-  const pb = String(b).replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
-  const n = Math.max(pa.length, pb.length);
-  for (let i = 0; i < n; i++) {
-    const x = pa[i] || 0;
-    const y = pb[i] || 0;
-    if (x < y) return -1;
-    if (x > y) return 1;
-  }
-  return 0;
-}
 
 function setNotice(n) {
   notice = n;
@@ -82,7 +70,7 @@ export async function connect(url) {
         type: "hello",
         payload: {
           extensionVersion: chrome.runtime.getManifest().version,
-          minDaemonVersion: MIN_DAEMON_VERSION,
+          protocolVersion: PROTOCOL_VERSION,
         },
       });
     });
@@ -198,24 +186,26 @@ async function handleMessage(msg) {
   }
 }
 
-// onHelloAck evaluates version compatibility reported by the daemon (#2).
+// onHelloAck evaluates protocol compatibility reported by the daemon. The
+// release versions are independent; only the protocol version decides.
 function onHelloAck(payload) {
-  const myVer = chrome.runtime.getManifest().version;
-  if (payload.compatible === false) {
+  if (payload.compatible !== false) {
+    setNotice(null);
+    return;
+  }
+  const daemonProto = payload.protocolVersion;
+  if (PROTOCOL_VERSION < daemonProto) {
     setNotice({
       level: "error",
-      message: `This extension (v${myVer}) is too old for the daemon (v${payload.daemonVersion}). Update the extension to v${payload.requiredExtensionVersion || payload.minExtensionVersion} or newer — tool calls will be refused until then.`,
+      message: `Protocol mismatch (extension ${PROTOCOL_VERSION}, daemon ${daemonProto}). Update this extension — tool calls will be refused until then.`,
     });
-    console.warn("[owb] incompatible: extension too old");
-  } else if (payload.daemonVersion && cmpV(payload.daemonVersion, MIN_DAEMON_VERSION) < 0) {
-    setNotice({
-      level: "warn",
-      message: `The daemon (v${payload.daemonVersion}) is older than this extension expects (v${MIN_DAEMON_VERSION}). Run \`open-webbridge update\` on the daemon machine.`,
-    });
-    console.warn("[owb] daemon older than extension expects");
   } else {
-    setNotice(null);
+    setNotice({
+      level: "error",
+      message: `Protocol mismatch (extension ${PROTOCOL_VERSION}, daemon ${daemonProto}). Update the daemon: run \`open-webbridge update\`.`,
+    });
   }
+  console.warn("[owb] protocol mismatch");
 }
 
 // onRejected handles "another browser already owns the daemon" (#4). We back

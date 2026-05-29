@@ -20,12 +20,16 @@ import (
 // Version is the daemon version. It is a var (not a const) so the release build
 // can stamp it from the git tag via -ldflags "-X …/config.Version=<tag>". The
 // default below is the fallback for plain `go build` / source installs.
-var Version = "1.0.4"
+var Version = "1.1.0"
 
-// MinExtensionVersion is the oldest extension the daemon will drive. An older
-// extension is told to update (see the version-pairing handshake in hub).
-// Bump this in lockstep with any breaking wire-protocol change.
-const MinExtensionVersion = "1.0.0"
+// ProtocolVersion is the wire-protocol contract between the daemon and the
+// extension. The two are compatible iff their ProtocolVersion matches — their
+// individual release versions are independent and do NOT need to match.
+//
+// Bump this (on BOTH sides) ONLY when the daemon↔extension message format
+// changes incompatibly. Ordinary daemon or extension releases keep it the same,
+// so a daemon patch never forces an extension re-release (or vice versa).
+const ProtocolVersion = 1
 
 // Repo is the GitHub slug used for self-update and release downloads.
 const Repo = "zhizuzhefu/open-webbridge"

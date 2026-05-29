@@ -32,6 +32,7 @@ type Hub struct {
 	mu           sync.Mutex
 	conn         *wsserver.Conn
 	extVer       string
+	extProtocol  int
 	connected    bool
 	compatible   bool
 	lastActivity time.Time
@@ -144,24 +145,26 @@ func (h *Hub) handleInbound(conn *wsserver.Conn, env protocol.Envelope) {
 	case "hello":
 		var p struct {
 			ExtensionVersion string `json:"extensionVersion"`
-			MinDaemonVersion string `json:"minDaemonVersion"`
+			ProtocolVersion  int    `json:"protocolVersion"`
 		}
 		_ = json.Unmarshal(env.Payload, &p)
-		compatible := config.CompareVersions(p.ExtensionVersion, config.MinExtensionVersion) >= 0
+		// Compatibility is decided by the protocol version, not the release
+		// version — daemon and extension version independently.
+		compatible := p.ProtocolVersion == config.ProtocolVersion
 		h.mu.Lock()
 		h.extVer = p.ExtensionVersion
+		h.extProtocol = p.ProtocolVersion
 		h.compatible = compatible
 		h.mu.Unlock()
 		_ = writeJSON(conn, protocol.Envelope{Type: "hello_ack", Payload: mustJSON(map[string]any{
-			"daemonVersion":            h.daemonVersion,
-			"minExtensionVersion":      config.MinExtensionVersion,
-			"requiredExtensionVersion": config.MinExtensionVersion,
-			"compatible":               compatible,
+			"daemonVersion":   h.daemonVersion,
+			"protocolVersion": config.ProtocolVersion,
+			"compatible":      compatible,
 		})})
 		if compatible {
-			log.Printf("[hub] hello from extension v%s (compatible)", p.ExtensionVersion)
+			log.Printf("[hub] hello from extension v%s (protocol %d, compatible)", p.ExtensionVersion, p.ProtocolVersion)
 		} else {
-			log.Printf("[hub] extension v%s is older than required v%s — asked to update", p.ExtensionVersion, config.MinExtensionVersion)
+			log.Printf("[hub] protocol mismatch: extension protocol %d, daemon protocol %d", p.ProtocolVersion, config.ProtocolVersion)
 		}
 	case "pong":
 		// keepalive reply; activity already touched
@@ -201,9 +204,12 @@ func (h *Hub) Call(ctx context.Context, action string, args json.RawMessage, ses
 		return nil, ErrNoExtension
 	}
 	if !h.compatible {
-		ev := h.extVer
+		ep := h.extProtocol
 		h.mu.Unlock()
-		return nil, fmt.Errorf("browser extension v%s is too old for daemon v%s — update the extension (requires >= v%s)", ev, h.daemonVersion, config.MinExtensionVersion)
+		if ep < config.ProtocolVersion {
+			return nil, fmt.Errorf("protocol mismatch: extension protocol %d, daemon protocol %d — update the browser extension", ep, config.ProtocolVersion)
+		}
+		return nil, fmt.Errorf("protocol mismatch: extension protocol %d, daemon protocol %d — update the daemon (open-webbridge update)", ep, config.ProtocolVersion)
 	}
 	h.seq++
 	id := fmt.Sprintf("r%d", h.seq)
