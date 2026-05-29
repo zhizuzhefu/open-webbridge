@@ -227,13 +227,10 @@ function onRejected(payload) {
   });
   console.warn("[owb] connection rejected:", notice.message);
   nextReconnectMs = REJECTED_RECONNECT_MS;
-  if (socket) {
-    try {
-      socket.close();
-    } catch {
-      /* ignore */
-    }
-  }
+  // Don't close the socket ourselves — the daemon closes it right after sending
+  // the rejection. Closing here too causes a double-close ("Close received
+  // after close") in the browser's console. The close event will fire and
+  // schedule a reconnect with the backoff set above.
 }
 
 async function handleToolCall(msg) {

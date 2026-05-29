@@ -103,7 +103,8 @@ func (c *Conn) ReadMessage() (string, error) {
 		case opPong:
 			// ignore
 		case opClose:
-			_ = c.writeFrame(opClose, nil)
+			// The caller's deferred Close() sends the single close frame; do
+			// not echo one here, to avoid a double close on the peer.
 			return "", io.EOF
 		}
 	}

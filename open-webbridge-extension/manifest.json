@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Open WebBridge",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Local, telemetry-free bridge that lets AI agents drive your real browser via the Chrome DevTools Protocol.",
   "background": {
     "service_worker": "src/background.js",

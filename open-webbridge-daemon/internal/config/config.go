@@ -20,7 +20,7 @@ import (
 // Version is the daemon version. It is a var (not a const) so the release build
 // can stamp it from the git tag via -ldflags "-X …/config.Version=<tag>". The
 // default below is the fallback for plain `go build` / source installs.
-var Version = "1.0.2"
+var Version = "1.0.3"
 
 // MinExtensionVersion is the oldest extension the daemon will drive. An older
 // extension is told to update (see the version-pairing handshake in hub).
