@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false   # no go.sum (zero deps); avoids "cache not found" warning
       - run: go vet ./...
       - run: go build ./...
       - run: go test ./... 2>/dev/null || true

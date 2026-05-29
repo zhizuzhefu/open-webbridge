@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false   # no go.sum (zero deps); avoids "cache not found" warning
 
       - uses: actions/setup-node@v4
         with:
