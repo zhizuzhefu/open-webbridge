@@ -79,9 +79,9 @@ open-webbridge call snapshot --session research
 | `close_session` | — | `{closed}` — close all of the session's tabs; **call at task end** |
 
 Most element tools (`snapshot`, `click`, `fill`, `hover`, `scroll`, `press_key`,
-`select_option`, `evaluate`, `drag`, `tap`) accept an optional `frame` arg — a
-`targetId` from `frames` — to act inside a cross-origin iframe. Take the
-`snapshot` and use its `@e` refs **with the same `frame`** for click/fill.
+`select_option`, `evaluate`, `upload`, `drag`, `tap`) accept an optional `frame`
+arg — a `targetId` from `frames` — to act inside a cross-origin iframe. Take the
+`snapshot` and use its `@e` refs **with the same `frame`** for click/fill/upload.
 
 Native dialogs (alert/confirm/prompt) are auto-**dismissed** by default so
 automation never hangs; call `dialog {"action":"accept"}` first if a flow needs
@@ -132,5 +132,8 @@ There's no page reload on submit — click the submit button (`click`), or use
 
 ## Versions
 
-Daemon, extension, and this skill share one version string. `open-webbridge status`
-reports `version` (daemon) and `extension_version`.
+Daemon and extension release versions are independent and do not need to match.
+Compatibility is governed by the daemon-extension protocol version. Use
+`open-webbridge status`: `version` is the daemon version, `extension_version` is
+the connected extension version, and `extension_compatible` tells you whether
+tool calls are allowed.

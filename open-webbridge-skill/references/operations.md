@@ -23,16 +23,14 @@ Run: `open-webbridge status`
 
 | Observed | Action |
 |---|---|
-| `command not found` | Not installed. Build it: from the repo run `scripts/install.sh` (builds the Go daemon, installs the skill, prints next steps). Or `cd open-webbridge-daemon && make install`. |
+| `command not found` | Not installed. Install the release binary with the official installer: `curl -fsSL https://raw.githubusercontent.com/zhizuzhefu/open-webbridge/main/scripts/install.sh | bash`. |
 | `{"running":false}` | Daemon not running. Run: `open-webbridge start` |
 | `running:true`, `extension_connected:false` | Extension not connected. See **Connecting the extension** below. |
 | `running:true`, `extension_connected:true` | Healthy. Return to SKILL.md and call tools. |
 
 ## Connecting the extension (one-time)
 
-1. Load the extension (once): open `chrome://extensions`, enable **Developer
-   mode**, click **Load unpacked**, and select the `open-webbridge-extension/`
-   directory.
+1. Install the Open WebBridge extension from the Chrome Web Store.
 2. Get the connection URL (it embeds the auth token):
    ```bash
    open-webbridge url
