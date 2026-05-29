@@ -170,7 +170,10 @@ func Call(t Target, action, session string, args json.RawMessage) error {
 	if t.Token != "" {
 		req.Header.Set("X-OWB-Token", t.Token)
 	}
-	client := &http.Client{Timeout: 120 * time.Second}
+	// Kept strictly larger than the daemon's commandTimeout (5m) so the server's
+	// own timeout fires first and returns a clean JSON error rather than the
+	// client aborting the connection.
+	client := &http.Client{Timeout: 6 * time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("daemon not reachable at %s (is it running? `open-webbridge start`): %w", t.BaseURL, err)

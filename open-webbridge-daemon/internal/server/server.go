@@ -19,8 +19,10 @@ import (
 	"github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon/internal/wsserver"
 )
 
-// commandTimeout bounds how long a single tool call may take.
-const commandTimeout = 90 * time.Second
+// commandTimeout bounds how long a single tool call may take. The CLI client
+// (process.Call) uses a strictly larger HTTP timeout so this server-side bound
+// fires first and returns a clean JSON error instead of a client-side abort.
+const commandTimeout = 5 * time.Minute
 
 type Server struct {
 	cfg     *config.Config

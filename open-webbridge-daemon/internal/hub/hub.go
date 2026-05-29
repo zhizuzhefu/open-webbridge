@@ -38,12 +38,59 @@ type Hub struct {
 	lastActivity time.Time
 	seq          uint64
 	pending      map[string]chan protocol.Envelope
+
+	// sessLocks serializes calls that target the same session. A session maps
+	// to a single browser tab, so two concurrent tool_calls would race two CDP
+	// commands on the same tab. Each session gets a capacity-1 semaphore;
+	// different sessions stay fully concurrent. Guarded by mu.
+	sessLocks map[string]chan struct{}
 }
 
 func New(daemonVersion string) *Hub {
 	return &Hub{
 		daemonVersion: daemonVersion,
 		pending:       make(map[string]chan protocol.Envelope),
+		sessLocks:     make(map[string]chan struct{}),
+	}
+}
+
+// sessionKey normalizes the session name. Empty is treated as "default" to
+// match the extension's own grouping (sessions.js: `name || "default"`), so a
+// call with no session and one with session="default" serialize together
+// because they drive the same tab.
+func sessionKey(session string) string {
+	if session == "" {
+		return "default"
+	}
+	return session
+}
+
+// acquireSession blocks until this session's slot is free, then claims it. The
+// wait honors ctx so a queued call that blows its deadline gives up instead of
+// waiting on a slow predecessor forever. Call releaseSession when done.
+func (h *Hub) acquireSession(ctx context.Context, key string) error {
+	h.mu.Lock()
+	sem := h.sessLocks[key]
+	if sem == nil {
+		sem = make(chan struct{}, 1)
+		h.sessLocks[key] = sem
+	}
+	h.mu.Unlock()
+
+	select {
+	case sem <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (h *Hub) releaseSession(key string) {
+	h.mu.Lock()
+	sem := h.sessLocks[key]
+	h.mu.Unlock()
+	if sem != nil {
+		<-sem
 	}
 }
 
@@ -197,7 +244,18 @@ func (h *Hub) keepalive(conn *wsserver.Conn, stop chan struct{}) {
 }
 
 // Call sends a tool_call to the extension and waits for its tool_result.
+//
+// Calls for the same session are serialized: the daemon will not submit a
+// second tool_call to the extension until the previous one for that session has
+// returned, so two agents driving the same tab queue instead of racing on CDP.
+// Distinct sessions run concurrently.
 func (h *Hub) Call(ctx context.Context, action string, args json.RawMessage, session string) (json.RawMessage, error) {
+	key := sessionKey(session)
+	if err := h.acquireSession(ctx, key); err != nil {
+		return nil, err
+	}
+	defer h.releaseSession(key)
+
 	h.mu.Lock()
 	if !h.connected || h.conn == nil {
 		h.mu.Unlock()
