@@ -400,6 +400,8 @@ open-webbridge update             # 安装最新版本并重启
 由于动作在你真实的浏览器配置档中执行,你授权的 AI 助手会以你已登录的会话身份行事。
 只把权限授予你信任的助手,不需要时请停止服务(`open-webbridge stop`)。
 
+完整隐私政策见 [Privacy Policy](PRIVACY.md)。
+
 ## 14. 故障排查
 
 | 现象 | 解决 |

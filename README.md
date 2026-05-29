@@ -446,6 +446,8 @@ Because actions run in your real browser profile, an agent you authorise can act
 with your logged-in sessions. Grant access only to agents you trust, and stop the
 service (`open-webbridge stop`) when it is not needed.
 
+See the full [Privacy Policy](PRIVACY.md).
+
 ## 14. Troubleshooting
 
 | Symptom | Resolution |
