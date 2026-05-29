@@ -94,7 +94,7 @@ Open WebBridge 由三个部分组成,只需安装一次:
 curl -fsSL https://raw.githubusercontent.com/zhizuzhefu/open-webbridge/main/scripts/install.sh | bash
 ```
 
-如需安装指定版本,设置 `OWB_VERSION`(例如 `OWB_VERSION=v1.0.0`)。
+如需安装指定版本,设置 `OWB_VERSION`(例如 `OWB_VERSION=v1.0.2`)。
 若想从源码构建,克隆仓库后运行 `./scripts/dev-install.sh`。
 
 程序会安装到 `~/.open-webbridge/bin/open-webbridge`。为方便使用,将其加入 `PATH`:

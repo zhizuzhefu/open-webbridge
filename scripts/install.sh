@@ -9,7 +9,7 @@
 # from the Chrome Web Store, or load it unpacked yourself.
 #
 # Env / flags:
-#   OWB_VERSION=v1.0.0   install a specific release (default: latest)
+#   OWB_VERSION=v1.0.2   install a specific release (default: latest)
 #   --no-start           install but do not start the daemon
 #   --no-skill           skip skill installation
 #   -h | --help          show this help

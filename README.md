@@ -115,7 +115,7 @@ starts the service:
 curl -fsSL https://raw.githubusercontent.com/zhizuzhefu/open-webbridge/main/scripts/install.sh | bash
 ```
 
-To install a specific version, set `OWB_VERSION` (e.g. `OWB_VERSION=v1.0.0`).
+To install a specific version, set `OWB_VERSION` (e.g. `OWB_VERSION=v1.0.2`).
 To build from source instead, clone the repository and run
 `./scripts/dev-install.sh`.
 
