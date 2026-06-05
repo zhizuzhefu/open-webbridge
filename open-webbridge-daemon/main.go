@@ -205,9 +205,9 @@ func runUpdate(cfg *config.Config, args []string) {
 	}
 }
 
-// autoUpdateLoop checks GitHub for newer releases. By default it only logs that
-// one is available; with auto_update=true in config it downloads and re-execs
-// the new binary in place.
+// autoUpdateLoop checks GitHub for newer releases. With auto_update=true (the
+// default for new installs) it downloads and re-execs the new binary in place;
+// when false it only logs that an update is available.
 func autoUpdateLoop(cfg *config.Config) {
 	check := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)

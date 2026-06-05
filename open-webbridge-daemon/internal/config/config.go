@@ -20,7 +20,7 @@ import (
 // Version is the daemon version. It is a var (not a const) so the release build
 // can stamp it from the git tag via -ldflags "-X …/config.Version=<tag>". The
 // default below is the fallback for plain `go build` / source installs.
-var Version = "1.2.0"
+var Version = "1.2.1"
 
 // ProtocolVersion is the wire-protocol contract between the daemon and the
 // extension. The two are compatible iff their ProtocolVersion matches — their
@@ -106,8 +106,11 @@ type Config struct {
 	// (acceptable for a strictly loopback bind only).
 	Token string `json:"token"`
 	// AutoUpdate, when true, lets the daemon download and apply newer GitHub
-	// releases automatically on its daily check. Default false: the daemon only
-	// logs that an update is available and waits for `open-webbridge update`.
+	// releases automatically on its daily check. NEW installs default this to
+	// true (set in Load on first run). When false the daemon only logs that an
+	// update is available and waits for `open-webbridge update`. Existing
+	// configs are left exactly as written — flipping the default does not
+	// re-enable users who have it off.
 	AutoUpdate bool `json:"auto_update"`
 	// RateLimits throttles navigations per domain. Each rule caps a domain to at
 	// most Max navigations per Window seconds; the daemon blocks a `navigate`
@@ -198,7 +201,9 @@ func Load() (*Config, error) {
 	b, err := os.ReadFile(ConfigPath())
 	if err != nil {
 		if os.IsNotExist(err) {
-			c := &Config{Host: DefaultHost, Port: DefaultPort, Token: genToken()}
+			// First run: auto-update defaults ON. This only affects fresh
+			// installs; existing config.json files keep whatever they have.
+			c := &Config{Host: DefaultHost, Port: DefaultPort, Token: genToken(), AutoUpdate: true}
 			if err := c.Save(); err != nil {
 				return nil, err
 			}
