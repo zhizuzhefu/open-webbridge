@@ -120,6 +120,44 @@ current value with `evaluate`, concatenate, then `fill` the result.
 There's no page reload on submit — click the submit button (`click`), or use
 `press_key` with `{"key":"Enter","selector":"@e7"}` to submit from a field.
 
+## Per-domain rate limiting (avoid hammering a site)
+
+When the user wants to throttle how often a site is hit — e.g. "search Xiaohongshu
+at most once every 5s" — set a **per-domain navigation limit**. It is generic
+(keyed purely by domain) and lives in the daemon, so it holds across separate
+CLI calls.
+
+```bash
+# at most 1 navigation to xiaohongshu.com (and its subdomains) every 5s
+open-webbridge ratelimit set xiaohongshu.com --per 5
+
+# at most 1 navigation to douyin.com every 10s
+open-webbridge ratelimit set douyin.com --per 10 --max 1
+
+open-webbridge ratelimit list            # show current limits
+open-webbridge ratelimit clear douyin.com   # remove one
+open-webbridge ratelimit clear --all        # remove all
+```
+
+- `--per <seconds>` is the window; `--max N` (default 1) is how many navigations
+  are allowed within it.
+- The domain matches the URL host **and its subdomains**: `xiaohongshu.com` also
+  covers `www.xiaohongshu.com`. Use the full host (`www.xiaohongshu.com`) to pin
+  one host only. The most specific matching rule wins.
+- **Only `navigate` is throttled** — that's the choke point where a fresh
+  search/open hits a site. Reading the already-open page (`snapshot`, `click`,
+  `fill`, …) is never blocked.
+- **Behavior when limited:** the `navigate` call **blocks** until the next slot
+  frees, then proceeds normally — you do not need retry logic. If the required
+  wait would outlast the request timeout (~90s), it instead returns
+  `{"ok":false,"error":"rate limited for this domain; retry in <N>s"}`; sleep
+  that long and call again.
+- `open-webbridge status` includes the active `rate_limits` so you can see what's
+  in effect.
+
+Setting a limit changes daemon config and **restarts the daemon** (briefly drops
+the extension connection), like `open-webbridge bind`.
+
 ## Known limitations
 
 - Sites that strictly check `event.isTrusted` (some banking portals, captchas)

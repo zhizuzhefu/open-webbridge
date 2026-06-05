@@ -6,6 +6,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -16,22 +17,25 @@ import (
 	"github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon/internal/files"
 	"github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon/internal/hub"
 	"github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon/internal/protocol"
+	"github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon/internal/ratelimit"
 	"github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon/internal/wsserver"
 )
 
 // commandTimeout bounds how long a single tool call may take. The CLI client
 // (process.Call) uses a strictly larger HTTP timeout so this server-side bound
 // fires first and returns a clean JSON error instead of a client-side abort.
+// It also caps how long a rate-limited navigation may block before being rejected.
 const commandTimeout = 5 * time.Minute
 
 type Server struct {
 	cfg     *config.Config
 	hub     *hub.Hub
+	limiter *ratelimit.Limiter
 	started time.Time
 }
 
 func New(cfg *config.Config, h *hub.Hub) *Server {
-	return &Server{cfg: cfg, hub: h, started: time.Now()}
+	return &Server{cfg: cfg, hub: h, limiter: ratelimit.New(cfg.RateLimits), started: time.Now()}
 }
 
 // Run binds to 127.0.0.1:port and serves until the context is cancelled.
@@ -88,6 +92,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		ExtensionVersion:    s.hub.ExtensionVersion(),
 		ExtensionCompatible: s.hub.Compatible(),
 		UptimeSeconds:       int64(time.Since(s.started).Seconds()),
+		RateLimits:          s.cfg.RateLimits,
 	}
 	writeJSON(w, http.StatusOK, st)
 }
@@ -113,6 +118,24 @@ func (s *Server) handleCommand(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), commandTimeout)
 	defer cancel()
+
+	// Per-domain throttling applies to navigations only — that is the choke
+	// point where a fresh operation (search/open) hits a site. The limiter
+	// blocks until a slot frees, or rejects if the wait would outlast the
+	// request deadline.
+	if req.Action == "navigate" {
+		if wait, err := s.limiter.Wait(ctx, navURL(req.Args)); err != nil {
+			if errors.Is(err, ratelimit.ErrWouldExceed) {
+				writeJSON(w, http.StatusOK, protocol.CommandResponse{OK: false,
+					Error: fmt.Sprintf("rate limited for this domain; retry in %.1fs", wait.Seconds())})
+				return
+			}
+			writeJSON(w, http.StatusOK, protocol.CommandResponse{OK: false, Error: err.Error()})
+			return
+		} else if wait > 0 {
+			log.Printf("[ratelimit] navigate throttled %.1fs", wait.Seconds())
+		}
+	}
 
 	data, err := s.hub.Call(ctx, req.Action, req.Args, req.Session)
 	if err != nil {
@@ -170,6 +193,15 @@ func (s *Server) authOK(r *http.Request) bool {
 		return true
 	}
 	return false
+}
+
+// navURL pulls the "url" field out of a navigate call's args, or "" if absent.
+func navURL(args json.RawMessage) string {
+	var a struct {
+		URL string `json:"url"`
+	}
+	_ = json.Unmarshal(args, &a)
+	return a.URL
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

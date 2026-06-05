@@ -24,8 +24,10 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -71,6 +73,8 @@ func main() {
 		runLogs(rest)
 	case "call":
 		runCall(cfg, rest)
+	case "ratelimit", "rl":
+		runRateLimit(cfg, rest)
 	case "update":
 		runUpdate(cfg, rest)
 	case "version", "-v", "--version":
@@ -237,6 +241,109 @@ func autoUpdateLoop(cfg *config.Config) {
 	}
 }
 
+// runRateLimit manages per-domain navigation throttles. Like `bind`, mutating
+// subcommands persist to config.json and restart a running daemon so the change
+// takes effect immediately.
+func runRateLimit(cfg *config.Config, args []string) {
+	sub := "list"
+	if len(args) > 0 {
+		sub = args[0]
+	}
+	rest := args[1:]
+
+	switch sub {
+	case "list", "ls":
+		printRateLimits(cfg)
+	case "set", "add":
+		// The domain comes first; flags follow it. Go's flag package stops at
+		// the first non-flag token, so peel the domain before parsing the rest.
+		if len(rest) < 1 || strings.HasPrefix(rest[0], "-") {
+			fatal(fmt.Errorf("usage: open-webbridge ratelimit set <domain> --per <seconds> [--max N]"))
+		}
+		domain := normalizeDomain(rest[0])
+		fs := flag.NewFlagSet("ratelimit set", flag.ExitOnError)
+		per := fs.Int("per", 0, "window length in seconds (required)")
+		max := fs.Int("max", 1, "max navigations allowed per window")
+		_ = fs.Parse(rest[1:])
+		if *per <= 0 {
+			fatal(fmt.Errorf("--per <seconds> is required and must be > 0, e.g. --per 5"))
+		}
+		if *max <= 0 {
+			fatal(fmt.Errorf("--max must be > 0"))
+		}
+		cfg.SetRateLimit(domain, *max, *per)
+		must(cfg.Save())
+		fmt.Printf("rate limit set: %s → at most %d navigation(s) per %ds\n", domain, *max, *per)
+		applyRateLimitChange(cfg)
+	case "clear", "rm", "remove", "unset":
+		fs := flag.NewFlagSet("ratelimit clear", flag.ExitOnError)
+		all := fs.Bool("all", false, "remove every rate limit")
+		_ = fs.Parse(rest)
+		if *all {
+			cfg.RateLimits = nil
+			must(cfg.Save())
+			fmt.Println("all rate limits cleared")
+			applyRateLimitChange(cfg)
+			return
+		}
+		if fs.NArg() < 1 {
+			fatal(fmt.Errorf("usage: open-webbridge ratelimit clear <domain> | --all"))
+		}
+		domain := normalizeDomain(fs.Arg(0)) // clear takes only flags + one domain, so flag.Parse order is fine
+		if cfg.ClearRateLimit(domain) {
+			must(cfg.Save())
+			fmt.Printf("rate limit cleared: %s\n", domain)
+			applyRateLimitChange(cfg)
+		} else {
+			fmt.Printf("no rate limit set for %s\n", domain)
+		}
+	default:
+		fatal(fmt.Errorf("unknown ratelimit subcommand %q (use list | set | clear)", sub))
+	}
+}
+
+func printRateLimits(cfg *config.Config) {
+	if len(cfg.RateLimits) == 0 {
+		fmt.Println("no rate limits configured")
+		return
+	}
+	for _, r := range cfg.RateLimits {
+		fmt.Printf("  %-30s at most %d navigation(s) per %ds\n", r.Domain, r.Max, r.Window)
+	}
+}
+
+// normalizeDomain accepts either a bare domain or a full URL and returns the
+// lowercased host (no scheme, path, or port).
+func normalizeDomain(s string) string {
+	s = strings.TrimSpace(s)
+	if strings.Contains(s, "://") {
+		if u, err := url.Parse(s); err == nil && u.Hostname() != "" {
+			return strings.ToLower(u.Hostname())
+		}
+	}
+	// Strip a leading scheme-less "//", any path, and any :port.
+	s = strings.TrimPrefix(s, "//")
+	if i := strings.IndexByte(s, '/'); i >= 0 {
+		s = s[:i]
+	}
+	if i := strings.IndexByte(s, ':'); i >= 0 {
+		s = s[:i]
+	}
+	return strings.ToLower(s)
+}
+
+// applyRateLimitChange restarts a running daemon so the new rules load. The
+// limiter captures rules at startup, mirroring how `bind` applies.
+func applyRateLimitChange(cfg *config.Config) {
+	if _, running := process.IsRunning(); running {
+		fmt.Println("restarting daemon to apply…")
+		_ = process.Stop()
+		must(process.Start(cfg))
+	} else {
+		fmt.Println("run `open-webbridge start` to launch with the new limits.")
+	}
+}
+
 func runLogs(args []string) {
 	fs := flag.NewFlagSet("logs", flag.ExitOnError)
 	n := fs.Int("n", 100, "number of lines")
@@ -314,6 +421,13 @@ Commands:
   call <action> [--session S] [--args '<json>'] [json]
                         invoke a browser tool, e.g.
                         open-webbridge call navigate --session work '{"url":"https://example.com","newTab":true}'
+  ratelimit list
+  ratelimit set <domain> --per <seconds> [--max N]
+  ratelimit clear <domain> | --all
+                        throttle navigations per domain (blocks until a slot
+                        frees), e.g.
+                        open-webbridge ratelimit set xiaohongshu.com --per 5
+                        open-webbridge ratelimit set douyin.com --per 10 --max 1
   version               print the version
 
 Source: https://github.com/zhizuzhefu/open-webbridge (AGPL-3.0)

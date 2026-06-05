@@ -7,7 +7,11 @@
 //	extension -> daemon: hello, pong, tool_result
 package protocol
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon/internal/config"
+)
 
 // Envelope is the single wire struct for every message in both directions.
 // Fields not relevant to a given type are omitted.
@@ -56,6 +60,9 @@ type Status struct {
 	ExtensionVersion    string `json:"extension_version"`
 	ExtensionCompatible bool   `json:"extension_compatible"`
 	UptimeSeconds       int64  `json:"uptime_seconds"`
+	// RateLimits is the active per-domain navigation throttle config, surfaced
+	// so callers (and the AI) can see what is in effect.
+	RateLimits []config.RateLimit `json:"rate_limits,omitempty"`
 }
 
 // BoolPtr is a helper for the optional OK field.

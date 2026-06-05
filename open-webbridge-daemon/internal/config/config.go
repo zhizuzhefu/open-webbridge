@@ -20,7 +20,7 @@ import (
 // Version is the daemon version. It is a var (not a const) so the release build
 // can stamp it from the git tag via -ldflags "-X …/config.Version=<tag>". The
 // default below is the fallback for plain `go build` / source installs.
-var Version = "1.1.1"
+var Version = "1.2.0"
 
 // ProtocolVersion is the wire-protocol contract between the daemon and the
 // extension. The two are compatible iff their ProtocolVersion matches — their
@@ -109,6 +109,53 @@ type Config struct {
 	// releases automatically on its daily check. Default false: the daemon only
 	// logs that an update is available and waits for `open-webbridge update`.
 	AutoUpdate bool `json:"auto_update"`
+	// RateLimits throttles navigations per domain. Each rule caps a domain to at
+	// most Max navigations per Window seconds; the daemon blocks a `navigate`
+	// call until a slot frees. Empty (default) means no throttling. This is a
+	// generic, site-agnostic mechanism — keys are plain domains, never anything
+	// hardcoded about a specific site.
+	RateLimits []RateLimit `json:"rate_limits,omitempty"`
+}
+
+// RateLimit caps navigations to one domain. Domain is matched against the
+// navigated URL's host: an exact host match, or a suffix match on a label
+// boundary (so "xiaohongshu.com" also covers "www.xiaohongshu.com"). The most
+// specific (longest) matching rule wins.
+type RateLimit struct {
+	Domain string `json:"domain"`
+	// Max is the maximum number of navigations allowed within Window. <=0 or
+	// Window<=0 disables the rule.
+	Max int `json:"max"`
+	// Window is the sliding window length in seconds.
+	Window int `json:"window_seconds"`
+}
+
+// SetRateLimit adds or replaces the rule for domain (case-insensitive).
+func (c *Config) SetRateLimit(domain string, max, window int) {
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	for i := range c.RateLimits {
+		if strings.ToLower(c.RateLimits[i].Domain) == domain {
+			c.RateLimits[i] = RateLimit{Domain: domain, Max: max, Window: window}
+			return
+		}
+	}
+	c.RateLimits = append(c.RateLimits, RateLimit{Domain: domain, Max: max, Window: window})
+}
+
+// ClearRateLimit removes the rule for domain, reporting whether one existed.
+func (c *Config) ClearRateLimit(domain string) bool {
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	out := c.RateLimits[:0]
+	found := false
+	for _, r := range c.RateLimits {
+		if strings.ToLower(r.Domain) == domain {
+			found = true
+			continue
+		}
+		out = append(out, r)
+	}
+	c.RateLimits = out
+	return found
 }
 
 // BinInstallPath is the canonical install location of the daemon binary.
