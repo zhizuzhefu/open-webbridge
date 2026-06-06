@@ -267,10 +267,17 @@ open-webbridge call <action> [--session NAME] [--args '<json>'] [json] \
 | 动作 | 参数 | 返回 |
 |------|------|------|
 | `network` | `cmd`(`start` / `stop` / `list` / `detail`);`filter`(子串,用于 `list`);`requestId`(用于 `detail`) | 请求/响应数据 |
+| `cookies` | `cmd`(`get` / `all`);`domain`(过滤,可选);`urls`(来源,用于 `get`) | `{ count, cookies, header }`——包含 **HttpOnly** Cookie |
 | `emulate` | `device` `{ width, height, deviceScaleFactor, mobile }`;`userAgent`(字符串);`geolocation` `{ latitude, longitude, accuracy }`;`clear`(布尔) | `{ applied }` |
 
 对于 `network`,先 `start`,执行活动,再 `list`(可按子串过滤),并用 `detail` 查看具体请求。
 对于 `emulate` 的地理位置,站点需已被授予地理位置权限,覆盖才会生效。
+
+`cookies` 通过 DevTools 协议读取浏览器真实的 Cookie jar,因此能拿到 **HttpOnly** Cookie——
+即页面 JS(`document.cookie`,也就是 `evaluate`)永远看不到的登录令牌。`cmd:"get"`(默认)返回
+当前活动标签页页面作用域内的 Cookie;`cmd:"all"` 返回整个浏览器配置的 Cookie(可用 `domain` 过滤)。
+每条 Cookie 都带 `httpOnly`、`secure`、`sameSite`、`expires`;返回值还含一个可直接粘贴的 `header`
+字符串,可直接用作请求的 `Cookie:` 头。
 
 ### 文件与对话框
 

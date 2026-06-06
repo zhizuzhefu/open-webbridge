@@ -1,7 +1,7 @@
 ---
 name: open-webbridge
 description: |
-  Open WebBridge lets AI drive the user's real browser — navigate, click, type, read, screenshot, snapshot, run JS, capture network, and save PDFs using the user's actual login sessions, via a local daemon. Telemetry-free, open source. Use whenever the user wants to interact with websites, automate browser tasks, scrape web content, log into and operate a site, or anything needing a real browser. Also use when the user mentions "browser", "webpage", "open URL", "screenshot", or asks to read/interact with any website.
+  Open WebBridge lets AI drive the user's real browser — navigate, click, type, read, screenshot, snapshot, run JS, capture network, read cookies (including HttpOnly), and save PDFs using the user's actual login sessions, via a local daemon. Telemetry-free, open source. Use whenever the user wants to interact with websites, automate browser tasks, scrape web content, log into and operate a site, or anything needing a real browser. Also use when the user mentions "browser", "webpage", "open URL", "screenshot", or asks to read/interact with any website.
 ---
 
 # Open WebBridge
@@ -68,6 +68,7 @@ open-webbridge call snapshot --session research
 | `screenshot` | `format`(png\|jpeg), `quality`(0-100), `selector`(opt) | `{path, format, sizeBytes}` — **saved to disk; returns a path, not base64** |
 | `save_as_pdf` | `paper_format`, `landscape`, `scale`, `print_background`, `file_name` | `{path, sizeBytes}` |
 | `network` | `cmd`(start\|stop\|list\|detail), `filter`, `requestId` | request/response data |
+| `cookies` | `cmd`(get\|all), `domain`(opt), `urls`(opt, for `get`) | `{count, cookies:[{name,value,domain,path,expires,session,httpOnly,secure,sameSite}], header}` — **reads HttpOnly cookies** (which `evaluate`/`document.cookie` cannot) |
 | `upload` | `selector`, `files`(string[] absolute paths) | `{fileCount}` |
 | `frames` | — | `{frames:[{targetId,type,url,title}]}` — list iframes; pass a `targetId` as `frame` to other tools |
 | `emulate` | `device`{width,height,deviceScaleFactor,mobile} / `userAgent` / `geolocation`{latitude,longitude,accuracy} / `clear`(bool) | `{applied}` — device/UA/geo emulation |
@@ -119,6 +120,33 @@ current value with `evaluate`, concatenate, then `fill` the result.
 
 There's no page reload on submit — click the submit button (`click`), or use
 `press_key` with `{"key":"Enter","selector":"@e7"}` to submit from a field.
+
+## Reading cookies (including HttpOnly)
+
+`cookies` reads the browser's real cookie jar through the DevTools Protocol, so
+it returns **HttpOnly** cookies too — the login tokens that `evaluate` can never
+see because `document.cookie` hides them. Use it to export a logged-in session
+(e.g. hand a site's auth cookies to a backend).
+
+```bash
+# cookies the active tab would send for the page it's on (default cmd:"get")
+open-webbridge call cookies --session goofish
+
+# every cookie for one domain and its subdomains, across the whole profile
+open-webbridge call cookies --session goofish --args '{"cmd":"all","domain":"goofish.com"}'
+
+# scope cmd:"get" to specific origins
+open-webbridge call cookies --session goofish --args '{"urls":["https://h5api.m.goofish.com"]}'
+```
+
+- First `navigate` to (or `find_tab` onto) the logged-in site so the session has
+  an open tab, then call `cookies`.
+- `cmd:"get"` (default) returns the cookies scoped to the active tab's current
+  page; `cmd:"all"` returns the entire profile's jar (use `domain` to filter).
+- Each cookie carries `httpOnly`, `secure`, `sameSite`, and `expires` (unix
+  seconds, or `null` + `session:true` for a session cookie).
+- The result also includes a ready-to-paste `header` string (`k=v; k=v; …`) for
+  use directly as a request `Cookie:` header.
 
 ## Per-domain rate limiting (avoid hammering a site)
 

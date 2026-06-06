@@ -11,6 +11,7 @@ import { frames } from "./tools/frames.js";
 import { emulate } from "./tools/emulate.js";
 import { download } from "./tools/downloads.js";
 import { dialog } from "./tools/dialogs.js";
+import { cookies } from "./tools/cookies.js";
 
 const handlers = {
   // tabs / sessions
@@ -37,11 +38,12 @@ const handlers = {
   // capture
   screenshot: capture.screenshot,
   save_as_pdf: capture.save_as_pdf,
-  // network / emulation / downloads / dialogs
+  // network / emulation / downloads / dialogs / cookies
   network,
   emulate,
   download,
   dialog,
+  cookies,
 };
 
 export async function dispatch(action, args, session) {

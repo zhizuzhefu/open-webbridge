@@ -301,11 +301,20 @@ runs JavaScript and returns its (JSON-serialisable) result; it supports `await`.
 | Action | Arguments | Returns |
 |--------|-----------|---------|
 | `network` | `cmd` (`start` / `stop` / `list` / `detail`); `filter` (substring, for `list`); `requestId` (for `detail`) | request/response data |
+| `cookies` | `cmd` (`get` / `all`); `domain` (filter, optional); `urls` (origins, for `get`) | `{ count, cookies, header }` — includes **HttpOnly** cookies |
 | `emulate` | `device` `{ width, height, deviceScaleFactor, mobile }`; `userAgent` (string); `geolocation` `{ latitude, longitude, accuracy }`; `clear` (bool) | `{ applied }` |
 
 For `network`, call `start`, perform the activity, then `list` (optionally
 filtered) and `detail` for a specific request. For `emulate` geolocation, the
 site must already have geolocation permission for the override to take effect.
+
+`cookies` reads the browser's real cookie jar over the DevTools Protocol, so it
+returns **HttpOnly** cookies too — the login tokens that page JS
+(`document.cookie`, hence `evaluate`) can never see. `cmd:"get"` (default)
+returns the cookies scoped to the active tab's page; `cmd:"all"` returns the
+whole profile's jar (filter with `domain`). Each cookie carries `httpOnly`,
+`secure`, `sameSite`, and `expires`; the result also includes a ready-to-paste
+`header` string for use as a request `Cookie:` header.
 
 ### Files and dialogs
 
