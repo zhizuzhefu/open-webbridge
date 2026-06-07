@@ -34,6 +34,13 @@ export async function acquireTab(name, { newTab } = {}) {
   if (!newTab && (await tabExists(s.activeTabId))) {
     return s.activeTabId;
   }
+  // newTab:true on a session that already has a live tab REPLACES that tab
+  // rather than leaving it open. A session models one logical slot; without
+  // this, repeatedly navigating with newTab:true piled up orphan tabs that
+  // close_tab (which only closes the active one) could never reclaim.
+  if (newTab && (await tabExists(s.activeTabId))) {
+    await closeActiveTab(name);
+  }
   const tab = await chrome.tabs.create({ url: "about:blank", active: false });
   s.tabIds.add(tab.id);
   s.activeTabId = tab.id;

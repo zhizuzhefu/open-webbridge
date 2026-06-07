@@ -20,7 +20,7 @@ import (
 // Version is the daemon version. It is a var (not a const) so the release build
 // can stamp it from the git tag via -ldflags "-X …/config.Version=<tag>". The
 // default below is the fallback for plain `go build` / source installs.
-var Version = "1.3.0"
+var Version = "1.3.1"
 
 // ProtocolVersion is the wire-protocol contract between the daemon and the
 // extension. The two are compatible iff their ProtocolVersion matches — their
