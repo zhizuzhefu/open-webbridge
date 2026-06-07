@@ -1,6 +1,6 @@
 open-webbridge-daemon/bin/
-open-webbridge-extension/dist/
 open-webbridge-extension/dist-obf/
 open-webbridge-extension/node_modules/
 dist/
+!open-webbridge-extension/dist/
 *.log

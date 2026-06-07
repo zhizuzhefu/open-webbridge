@@ -1,0 +1,56 @@
+name: sync-dist
+
+# On every v* tag, rebuild the extension's dist/ from source and commit it back
+# to main, so the checked-in build always matches the tagged source.
+#
+# This is the "commit dist/ into git" half. The release.yml workflow independently
+# builds the same dist/ and ships it as open-webbridge-extension.zip on the
+# Release — the two are complementary, not exclusive.
+on:
+  push:
+    tags:
+      - "v*"
+
+# Serialize runs so two tags pushed close together can't race on pushing main.
+concurrency:
+  group: sync-dist
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync-dist:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out main (not the detached tag) so we can commit + push the rebuilt
+      # dist/ back onto the branch. fetch-depth: 0 keeps full history for the push.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build extension (bundle + minify; Chrome Web Store compliant)
+        run: |
+          set -euo pipefail
+          cd open-webbridge-extension
+          npm install --no-audit --no-fund
+          npm run build          # writes open-webbridge-extension/dist/
+
+      - name: Commit dist/ if it changed
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add open-webbridge-extension/dist
+          if git diff --cached --quiet; then
+            echo "dist/ already up to date — nothing to commit."
+            exit 0
+          fi
+          # [skip ci] so committing the build doesn't retrigger ci.yml.
+          git commit -m "chore(extension): rebuild dist for ${GITHUB_REF_NAME} [skip ci]"
+          git push origin HEAD:main

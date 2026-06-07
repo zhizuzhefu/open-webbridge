@@ -1,0 +1,165 @@
+:root {
+  --teal: #0e7c86;
+  --teal-dark: #0a5b63;
+  --bg: #ffffff;
+  --fg: #1c2024;
+  --muted: #6b7280;
+  --ok: #16a34a;
+  --off: #9ca3af;
+  --err: #dc2626;
+  --border: #e5e7eb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 320px;
+  margin: 0;
+  padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+  flex: 0 0 auto;
+}
+
+h1 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 2px 0 0;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 8px 10px;
+  background: #f7f8fa;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.dot.on {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+}
+
+.dot.off {
+  background: var(--off);
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--teal);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 6px 0 14px;
+  line-height: 1.4;
+}
+
+code {
+  background: #f1f3f5;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  flex: 1;
+  padding: 9px 0;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--teal);
+  color: #fff;
+  border-color: var(--teal);
+}
+
+button.primary:hover {
+  background: var(--teal-dark);
+}
+
+button.ghost {
+  background: #fff;
+  color: var(--fg);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.msg {
+  font-size: 12px;
+  margin: 12px 0 0;
+  min-height: 16px;
+}
+
+.msg.ok {
+  color: var(--ok);
+}
+
+.msg.err {
+  color: var(--err);
+}
+
+.msg.warn {
+  color: #b45309;
+}

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Open WebBridge</title>
+  </head>
+  <body>
+    <header>
+      <div class="logo"></div>
+      <div>
+        <h1>Open WebBridge</h1>
+        <p class="sub">telemetry-free browser bridge</p>
+      </div>
+    </header>
+
+    <div class="status-row">
+      <span id="dot" class="dot off"></span>
+      <span id="status-text">Disconnected</span>
+    </div>
+
+    <label for="url">WebSocket URL</label>
+    <input
+      id="url"
+      type="text"
+      spellcheck="false"
+      placeholder="ws://127.0.0.1:9234/ws?token=..."
+    />
+    <p class="hint">
+      Run <code>open-webbridge url</code> in your terminal and paste the result here.
+    </p>
+
+    <div class="buttons">
+      <button id="connect" class="primary">Connect</button>
+      <button id="disconnect" class="ghost">Disconnect</button>
+    </div>
+
+    <p id="msg" class="msg"></p>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
