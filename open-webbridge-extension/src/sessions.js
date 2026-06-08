@@ -8,14 +8,71 @@ import { clearRefs } from "./refs.js";
 
 const sessions = new Map(); // name -> { groupId, activeTabId, tabIds:Set<number> }
 
+const sessionKey = (name) => name || "default";
+
 export function getSession(name) {
-  const key = name || "default";
+  const key = sessionKey(name);
   let s = sessions.get(key);
   if (!s) {
     s = { groupId: null, activeTabId: null, tabIds: new Set() };
     sessions.set(key, s);
   }
   return s;
+}
+
+// reconcile rebuilds a session's in-memory state from the tab groups Chrome has
+// actually kept alive. The in-memory map is volatile: a service-worker suspend,
+// an extension update, or a daemon restart wipes it, yet Chrome keeps the tab
+// groups (titled with the session name) open. Those become "orphaned" — known
+// to the browser but invisible to us, so list_tabs returns nothing and
+// close_session closes nothing. Matching live groups back to the session by
+// title re-adopts them, which makes the bridge self-healing: navigate reuses the
+// existing group instead of spawning a duplicate, and close_session/list_tabs
+// see every tab again. Call this before any operation that depends on knowing a
+// session's real tabs.
+export async function reconcile(name) {
+  const key = sessionKey(name);
+  const s = getSession(name);
+  let all;
+  try {
+    all = await chrome.tabGroups.query({});
+  } catch {
+    return s; // tabGroups unavailable; fall back to whatever we have in memory.
+  }
+  // Exact-title match in JS rather than via the query filter so titles with
+  // special characters (our session names can be arbitrary) compare reliably.
+  const groups = all.filter((g) => (g.title || "") === key);
+  if (groups.length === 0) {
+    // Drop a groupId pointing at a group Chrome no longer has.
+    if (s.groupId != null && !all.some((g) => g.id === s.groupId)) s.groupId = null;
+    return s;
+  }
+  // Repeated reloads can pile up several groups sharing one title. Adopt the
+  // first as canonical (new tabs join it) and fold every duplicate's tabs into
+  // the session so close_session reaches them all.
+  s.groupId = groups[0].id;
+  for (const g of groups) {
+    let tabs;
+    try {
+      tabs = await chrome.tabs.query({ groupId: g.id });
+    } catch {
+      continue;
+    }
+    for (const t of tabs) s.tabIds.add(t.id);
+  }
+  if (!(await tabExists(s.activeTabId))) {
+    s.activeTabId = s.tabIds.size ? [...s.tabIds][s.tabIds.size - 1] : null;
+  }
+  return s;
+}
+
+// trackedGroupIds returns the Chrome group IDs the in-memory map currently owns,
+// so callers can tell which live groups are orphaned (present in Chrome but not
+// adopted by any session).
+export function trackedGroupIds() {
+  const ids = new Set();
+  for (const s of sessions.values()) if (s.groupId != null) ids.add(s.groupId);
+  return ids;
 }
 
 async function tabExists(tabId) {
@@ -30,7 +87,8 @@ async function tabExists(tabId) {
 
 // acquireTab returns a usable tab for the session, creating one when needed.
 export async function acquireTab(name, { newTab } = {}) {
-  const s = getSession(name);
+  // Recover any orphaned group/tab first so we reuse it instead of duplicating.
+  const s = await reconcile(name);
   if (!newTab && (await tabExists(s.activeTabId))) {
     return s.activeTabId;
   }
@@ -106,9 +164,12 @@ export async function closeActiveTab(name) {
 }
 
 export async function closeSession(name) {
-  const s = getSession(name);
+  // Reconcile first so orphaned tabs left by a reload are closed too — without
+  // this, close_session on a recovered session returns closed:0 and the group
+  // lingers in the UI.
+  const s = await reconcile(name);
   let closed = 0;
-  for (const id of s.tabIds) {
+  for (const id of [...s.tabIds]) {
     await cdp.detach(id).catch(() => {});
     clearRefs(id);
     try {
@@ -118,7 +179,33 @@ export async function closeSession(name) {
       /* already gone */
     }
   }
-  sessions.delete(name || "default");
+  sessions.delete(sessionKey(name));
+  return closed;
+}
+
+// closeGroup closes every tab in a specific Chrome tab group by id. This is the
+// escape hatch for orphans the AI located via list_sessions and wants to remove
+// precisely — e.g. when duplicate groups share a title and closing by name is
+// ambiguous. Any in-memory session bookkeeping is cleaned up by the
+// tabs.onRemoved listener as the tabs disappear.
+export async function closeGroup(groupId) {
+  let tabs;
+  try {
+    tabs = await chrome.tabs.query({ groupId });
+  } catch {
+    return 0;
+  }
+  let closed = 0;
+  for (const t of tabs) {
+    await cdp.detach(t.id).catch(() => {});
+    clearRefs(t.id);
+    try {
+      await chrome.tabs.remove(t.id);
+      closed++;
+    } catch {
+      /* already gone */
+    }
+  }
   return closed;
 }
 

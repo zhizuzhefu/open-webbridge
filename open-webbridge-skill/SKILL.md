@@ -75,9 +75,10 @@ open-webbridge call snapshot --session research
 | `download` | `cmd`(start\|list\|cancel), `url`(for start), `id`(for cancel), `limit` | `{downloads:[{id,url,filename,state,bytesReceived,totalBytes}]}` — native download mgmt |
 | `dialog` | `action`(accept\|dismiss), `promptText`(opt), or `cmd:"list"` | `{policy}` / `{dialogs}` — handle native alert/confirm/prompt |
 | `list_tabs` | — | `{tabs:[{tabId,url,title,active,groupTitle}]}` |
+| `list_sessions` | — | `{sessions:[{session,groupId,color,tabCount,orphaned}]}` — every tab group in the browser, incl. **orphaned** ones left by a reload/update; use to find and clean up stragglers |
 | `activate_tab` | `tabId`(opt) | `{tabId}` — bring a tab to the foreground |
 | `close_tab` | — | `{closed}` — close the session's active tab |
-| `close_session` | — | `{closed}` — close all of the session's tabs; **call at task end** |
+| `close_session` | `groupId`(opt) | `{closed}` — close all the session's tabs (recovers orphans matching the name); pass `groupId` (from `list_sessions`) to close one specific orphan group; **call at task end** |
 
 Most element tools (`snapshot`, `click`, `fill`, `hover`, `scroll`, `press_key`,
 `select_option`, `evaluate`, `upload`, `drag`, `tap`) accept an optional `frame`

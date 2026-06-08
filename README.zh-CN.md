@@ -222,11 +222,19 @@ open-webbridge call <action> [--session NAME] [--args '<json>'] [json] \
 | `navigate` | `url`(字符串,必填);`newTab`(布尔);`group_title`(字符串) | `{ url, tabId, title }` |
 | `find_tab` | `url`(字符串,URL 或域名,必填);`active`(布尔) | `{ url, tabId }` |
 | `list_tabs` | — | `{ tabs: [ { tabId, url, title, active, groupTitle } ] }` |
+| `list_sessions` | — | `{ sessions: [ { session, groupId, color, tabCount, orphaned } ] }` |
 | `activate_tab` | `tabId`(数字,可选) | `{ tabId }` |
 | `close_tab` | — | `{ closed }` |
-| `close_session` | — | `{ closed }` |
+| `close_session` | `groupId`(数字,可选) | `{ closed }` |
 
 会话的第一次 `navigate` 请用 `newTab: true`。任务结束时调用 `close_session`。
+
+会话状态只存在于浏览器的标签分组里(分组标题即会话名),因此 service worker
+重载、扩展更新或守护进程重启都可能留下“无主”的遗留分组。现在在
+`navigate`/`list_tabs`/`close_session` 之前,扩展会先把会话与 Chrome 中实际存活的
+分组进行对账(reconcile),从而按名字重新接管遗留分组,而不会再新建重复分组。用
+`list_sessions` 可列出全部分组(无主分组会标记 `orphaned: true`),用带 `groupId`
+的 `close_session` 可精确关闭某一个分组。
 
 ### 读取页面
 

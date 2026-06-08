@@ -254,12 +254,21 @@ iframe.
 | `navigate` | `url` (string, required); `newTab` (bool); `group_title` (string) | `{ url, tabId, title }` |
 | `find_tab` | `url` (string — URL or domain, required); `active` (bool) | `{ url, tabId }` |
 | `list_tabs` | — | `{ tabs: [ { tabId, url, title, active, groupTitle } ] }` |
+| `list_sessions` | — | `{ sessions: [ { session, groupId, color, tabCount, orphaned } ] }` |
 | `activate_tab` | `tabId` (number, optional) | `{ tabId }` |
 | `close_tab` | — | `{ closed }` |
-| `close_session` | — | `{ closed }` |
+| `close_session` | `groupId` (number, optional) | `{ closed }` |
 
 Use `newTab: true` on the first `navigate` of a session. Call `close_session`
 when a task is finished.
+
+Sessions live only in the browser's tab groups (titled with the session name),
+so a service-worker reload, an extension update, or a daemon restart can leave
+"orphaned" groups behind. The bridge now reconciles a session against Chrome's
+live groups before `navigate`/`list_tabs`/`close_session`, so those operations
+re-adopt an orphan by name instead of spawning a duplicate. Use `list_sessions`
+to discover every group (including orphans, flagged `orphaned: true`) and
+`close_session` with a `groupId` to clear a specific one.
 
 ### Reading a page
 

@@ -18,6 +18,7 @@ const handlers = {
   navigate: tabs.navigate,
   find_tab: tabs.find_tab,
   list_tabs: tabs.list_tabs,
+  list_sessions: tabs.list_sessions,
   activate_tab: tabs.activate_tab,
   close_tab: tabs.close_tab,
   close_session: tabs.close_session,

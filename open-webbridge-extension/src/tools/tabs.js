@@ -7,9 +7,11 @@ import {
   setGroupTitle,
   getActiveTab,
   bindTab,
-  getSession,
+  reconcile,
   closeActiveTab,
   closeSession as endSession,
+  closeGroup,
+  trackedGroupIds,
 } from "../sessions.js";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -64,7 +66,8 @@ export async function find_tab(args, session) {
 }
 
 export async function list_tabs(args, session) {
-  const s = getSession(session);
+  // Reconcile first so tabs in a recovered/orphaned group are listed too.
+  const s = await reconcile(session);
   const tabs = [];
   for (const id of s.tabIds) {
     try {
@@ -103,8 +106,43 @@ export async function close_tab(args, session) {
   return { success: true, closed };
 }
 
+// list_sessions enumerates every tab group in the browser the bridge could own,
+// including "orphaned" ones whose in-memory state was lost to a reload/update.
+// The group title is the session name, so the AI can discover stragglers and
+// close them by name (close_session) or by groupId (close_session {groupId}).
+export async function list_sessions() {
+  let groups;
+  try {
+    groups = await chrome.tabGroups.query({});
+  } catch {
+    return { success: true, sessions: [] };
+  }
+  const tracked = trackedGroupIds();
+  const out = [];
+  for (const g of groups) {
+    let tabCount = 0;
+    try {
+      tabCount = (await chrome.tabs.query({ groupId: g.id })).length;
+    } catch {
+      /* group gone */
+    }
+    out.push({
+      session: g.title || "",
+      groupId: g.id,
+      color: g.color,
+      tabCount,
+      orphaned: !tracked.has(g.id),
+    });
+  }
+  return { success: true, sessions: out };
+}
+
 export async function close_session(args, session) {
-  const closed = await endSession(session);
+  // groupId targets one specific group — used to clear a single orphan when
+  // duplicates share a title. Otherwise close the named session (reconcile
+  // inside endSession recovers orphans matching the name).
+  const closed =
+    args.groupId != null ? await closeGroup(args.groupId) : await endSession(session);
   return { success: true, closed };
 }
 
