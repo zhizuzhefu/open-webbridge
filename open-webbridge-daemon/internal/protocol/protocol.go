@@ -26,6 +26,11 @@ type Envelope struct {
 	Args    json.RawMessage `json:"args,omitempty"`
 	Session string          `json:"session,omitempty"`
 
+	// DomainTabLimits (if any) are sent on every tool_call so the extension can
+	// enforce per-domain concurrent tab caps without requiring a restart or
+	// extra WS message. Most-specific (longest) domain wins, same as rate limits.
+	DomainTabLimits []config.DomainTabLimit `json:"domain_tab_limits,omitempty"`
+
 	// tool_result fields.
 	OK    *bool           `json:"ok,omitempty"`
 	Data  json.RawMessage `json:"data,omitempty"`
@@ -51,11 +56,11 @@ type CommandResponse struct {
 
 // Status is returned by GET /status.
 type Status struct {
-	Running            bool   `json:"running"`
-	Host               string `json:"host"`
-	Port               int    `json:"port"`
-	Remote             bool   `json:"remote"`
-	Version            string `json:"version"`
+	Running             bool   `json:"running"`
+	Host                string `json:"host"`
+	Port                int    `json:"port"`
+	Remote              bool   `json:"remote"`
+	Version             string `json:"version"`
 	ExtensionConnected  bool   `json:"extension_connected"`
 	ExtensionVersion    string `json:"extension_version"`
 	ExtensionCompatible bool   `json:"extension_compatible"`
@@ -63,6 +68,21 @@ type Status struct {
 	// RateLimits is the active per-domain navigation throttle config, surfaced
 	// so callers (and the AI) can see what is in effect.
 	RateLimits []config.RateLimit `json:"rate_limits,omitempty"`
+	// RateLimitStatus provides live runtime info (in-use slots and estimated
+	// wait for next slot) for the configured rate limits. Populated when the
+	// daemon is running.
+	RateLimitStatus []RateLimitStatus `json:"rate_limit_status,omitempty"`
+	// DomainTabLimits are the active per-domain caps on concurrent OWB tabs.
+	DomainTabLimits []config.DomainTabLimit `json:"domain_tab_limits,omitempty"`
+}
+
+// RateLimitStatus is the wire representation of live rate limit usage.
+type RateLimitStatus struct {
+	Domain      string  `json:"domain"`
+	Max         int     `json:"max"`
+	Window      int     `json:"window_seconds"`
+	InUse       int     `json:"in_use"`
+	WaitSeconds float64 `json:"wait_seconds"`
 }
 
 // BoolPtr is a helper for the optional OK field.

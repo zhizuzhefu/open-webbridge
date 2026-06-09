@@ -3,10 +3,12 @@
 
 import { cdp } from "../cdp.js";
 import {
-  acquireTab,
+  acquireTabForNavigation,
   setGroupTitle,
   getActiveTab,
   bindTab,
+  ensureDomainTabLimits,
+  withTabMutationLock,
   reconcile,
   closeActiveTab,
   closeSession as endSession,
@@ -26,10 +28,25 @@ async function waitForComplete(tabId, timeoutMs = 30000) {
   return chrome.tabs.get(tabId);
 }
 
-export async function navigate(args, session) {
+function hasDomainTabLimits(options) {
+  return Array.isArray(options && options.domainTabLimits) && options.domainTabLimits.length > 0;
+}
+
+function withOptionalTabLimitLock(options, fn) {
+  return hasDomainTabLimits(options) ? withTabMutationLock(fn) : fn();
+}
+
+export async function navigate(args, session, options = {}) {
   if (!args.url) throw new Error("navigate requires url");
-  const tabId = await acquireTab(session, { newTab: !!args.newTab });
-  await chrome.tabs.update(tabId, { url: args.url });
+  const tabId = await withOptionalTabLimitLock(options, async () => {
+    const id = await acquireTabForNavigation(session, {
+      newTab: !!args.newTab,
+      domainTabLimits: options.domainTabLimits,
+      targetUrl: args.url,
+    });
+    await chrome.tabs.update(id, { url: args.url });
+    return id;
+  });
   const t = await waitForComplete(tabId);
   if (args.group_title) await setGroupTitle(session, args.group_title);
   return { success: true, url: t.url, tabId, title: t.title };
@@ -43,7 +60,7 @@ function hostOf(u) {
   }
 }
 
-export async function find_tab(args, session) {
+export async function find_tab(args, session, options = {}) {
   if (!args.url) throw new Error("find_tab requires url (a URL or domain)");
   const all = await chrome.tabs.query({});
   const wantHost = hostOf(args.url) || String(args.url).replace(/^https?:\/\//, "").split("/")[0];
@@ -61,7 +78,10 @@ export async function find_tab(args, session) {
     matches.sort((a, b) => a.index - b.index);
     chosen = matches[0];
   }
-  bindTab(session, chosen.id);
+  await withOptionalTabLimitLock(options, async () => {
+    await ensureDomainTabLimits(options.domainTabLimits, chosen.pendingUrl || chosen.url, { excludeTabId: chosen.id });
+    bindTab(session, chosen.id);
+  });
   return { success: true, url: chosen.url, tabId: chosen.id };
 }
 
@@ -89,16 +109,20 @@ export async function list_tabs(args, session) {
   return { success: true, tabs };
 }
 
-export async function activate_tab(args, session) {
+export async function activate_tab(args, session, options = {}) {
   const tabId = args.tabId != null ? args.tabId : getActiveTab(session);
-  const t = await chrome.tabs.update(tabId, { active: true });
-  try {
-    await chrome.windows.update(t.windowId, { focused: true });
-  } catch {
-    /* ignore */
-  }
-  bindTab(session, tabId);
-  return { success: true, tabId };
+  return withOptionalTabLimitLock(options, async () => {
+    const current = await chrome.tabs.get(tabId);
+    await ensureDomainTabLimits(options.domainTabLimits, current.pendingUrl || current.url, { excludeTabId: tabId });
+    const t = await chrome.tabs.update(tabId, { active: true });
+    try {
+      await chrome.windows.update(t.windowId, { focused: true });
+    } catch {
+      /* ignore */
+    }
+    bindTab(session, tabId);
+    return { success: true, tabId };
+  });
 }
 
 export async function close_tab(args, session) {
@@ -117,7 +141,7 @@ export async function list_sessions() {
   } catch {
     return { success: true, sessions: [] };
   }
-  const tracked = trackedGroupIds();
+  const tracked = await trackedGroupIds();
   const out = [];
   for (const g of groups) {
     let tabCount = 0;

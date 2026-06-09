@@ -113,7 +113,7 @@ func TestAcquireSession_ContextCancelWhileQueued(t *testing.T) {
 func TestCall_NoExtensionReleasesSession(t *testing.T) {
 	h := New("test")
 	for i := 0; i < 3; i++ {
-		_, err := h.Call(context.Background(), "noop", nil, "s1")
+		_, err := h.Call(context.Background(), "noop", nil, "s1", nil)
 		if err != ErrNoExtension {
 			t.Fatalf("call %d: got %v, want ErrNoExtension", i, err)
 		}

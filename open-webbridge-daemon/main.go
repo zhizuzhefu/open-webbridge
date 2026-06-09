@@ -75,6 +75,8 @@ func main() {
 		runCall(cfg, rest)
 	case "ratelimit", "rl":
 		runRateLimit(cfg, rest)
+	case "tablimit", "tl":
+		runTabLimit(cfg, rest)
 	case "update":
 		runUpdate(cfg, rest)
 	case "version", "-v", "--version":
@@ -241,9 +243,10 @@ func autoUpdateLoop(cfg *config.Config) {
 	}
 }
 
-// runRateLimit manages per-domain navigation throttles. Like `bind`, mutating
-// subcommands persist to config.json and restart a running daemon so the change
-// takes effect immediately.
+// runRateLimit manages per-domain navigation throttles.
+// Changes are persisted to config.json. Thanks to hot-reload in the daemon,
+// rate limit rule changes take effect on the *next navigate* without requiring
+// a daemon restart (unlike bind / host changes).
 func runRateLimit(cfg *config.Config, args []string) {
 	sub := "list"
 	if len(args) > 0 {
@@ -274,7 +277,9 @@ func runRateLimit(cfg *config.Config, args []string) {
 		cfg.SetRateLimit(domain, *max, *per)
 		must(cfg.Save())
 		fmt.Printf("rate limit set: %s → at most %d navigation(s) per %ds\n", domain, *max, *per)
-		applyRateLimitChange(cfg)
+		fmt.Println("change will take effect on the next navigate (no daemon restart required).")
+		// Hot reload: daemon will pick up the new rules from the file on next use.
+		// We intentionally do NOT restart here (unlike bind).
 	case "clear", "rm", "remove", "unset":
 		fs := flag.NewFlagSet("ratelimit clear", flag.ExitOnError)
 		all := fs.Bool("all", false, "remove every rate limit")
@@ -283,7 +288,7 @@ func runRateLimit(cfg *config.Config, args []string) {
 			cfg.RateLimits = nil
 			must(cfg.Save())
 			fmt.Println("all rate limits cleared")
-			applyRateLimitChange(cfg)
+			fmt.Println("change will take effect on the next navigate (no daemon restart required).")
 			return
 		}
 		if fs.NArg() < 1 {
@@ -293,7 +298,7 @@ func runRateLimit(cfg *config.Config, args []string) {
 		if cfg.ClearRateLimit(domain) {
 			must(cfg.Save())
 			fmt.Printf("rate limit cleared: %s\n", domain)
-			applyRateLimitChange(cfg)
+			fmt.Println("change will take effect on the next navigate (no daemon restart required).")
 		} else {
 			fmt.Printf("no rate limit set for %s\n", domain)
 		}
@@ -332,8 +337,10 @@ func normalizeDomain(s string) string {
 	return strings.ToLower(s)
 }
 
-// applyRateLimitChange restarts a running daemon so the new rules load. The
-// limiter captures rules at startup, mirroring how `bind` applies.
+// applyRateLimitChange is kept for compatibility / future "heavy" config, but
+// rate limit (and tablimit) changes are now hot-reloaded from the config file
+// by the running daemon (see server.refreshRateLimitsIfChanged). Only things
+// that affect the listener (bind) still require a restart.
 func applyRateLimitChange(cfg *config.Config) {
 	if _, running := process.IsRunning(); running {
 		fmt.Println("restarting daemon to apply…")
@@ -341,6 +348,80 @@ func applyRateLimitChange(cfg *config.Config) {
 		must(process.Start(cfg))
 	} else {
 		fmt.Println("run `open-webbridge start` to launch with the new limits.")
+	}
+}
+
+// runTabLimit manages per-domain (and future global) caps on the *number* of
+// concurrently open Open WebBridge tabs. This complements ratelimit (which
+// controls *rate* of navigations) by controlling *quantity* of tabs per site.
+//
+// Example:
+//
+//	open-webbridge tablimit set xiaohongshu.com --max 2
+//	open-webbridge tablimit list
+//	open-webbridge tablimit clear xiaohongshu.com
+//
+// Rules are sent to the extension on every tool call so they apply without
+// daemon restart (hot update).
+func runTabLimit(cfg *config.Config, args []string) {
+	sub := "list"
+	if len(args) > 0 {
+		sub = args[0]
+	}
+	rest := args[1:]
+
+	switch sub {
+	case "list", "ls":
+		printTabLimits(cfg)
+	case "set", "add":
+		if len(rest) < 1 || strings.HasPrefix(rest[0], "-") {
+			fatal(fmt.Errorf("usage: open-webbridge tablimit set <domain> --max N"))
+		}
+		domain := normalizeDomain(rest[0])
+		fs := flag.NewFlagSet("tablimit set", flag.ExitOnError)
+		max := fs.Int("max", 0, "maximum concurrent OWB tabs for this domain (required)")
+		_ = fs.Parse(rest[1:])
+		if *max <= 0 {
+			fatal(fmt.Errorf("--max N is required and must be > 0, e.g. --max 2"))
+		}
+		cfg.SetDomainTabLimit(domain, *max)
+		must(cfg.Save())
+		fmt.Printf("domain tab limit set: %s → at most %d Open WebBridge tab(s)\n", domain, *max)
+		fmt.Println("change will take effect on the next navigate (no daemon restart required).")
+	case "clear", "rm", "remove", "unset":
+		fs := flag.NewFlagSet("tablimit clear", flag.ExitOnError)
+		all := fs.Bool("all", false, "remove every per-domain tab limit")
+		_ = fs.Parse(rest)
+		if *all {
+			cfg.DomainTabLimits = nil
+			must(cfg.Save())
+			fmt.Println("all per-domain tab limits cleared")
+			fmt.Println("change will take effect on the next navigate (no daemon restart required).")
+			return
+		}
+		if fs.NArg() < 1 {
+			fatal(fmt.Errorf("usage: open-webbridge tablimit clear <domain> | --all"))
+		}
+		domain := normalizeDomain(fs.Arg(0))
+		if cfg.ClearDomainTabLimit(domain) {
+			must(cfg.Save())
+			fmt.Printf("domain tab limit cleared: %s\n", domain)
+			fmt.Println("change will take effect on the next navigate (no daemon restart required).")
+		} else {
+			fmt.Printf("no domain tab limit set for %s\n", domain)
+		}
+	default:
+		fatal(fmt.Errorf("unknown tablimit subcommand %q (use list | set | clear)", sub))
+	}
+}
+
+func printTabLimits(cfg *config.Config) {
+	if len(cfg.DomainTabLimits) == 0 {
+		fmt.Println("no per-domain tab limits configured")
+		return
+	}
+	for _, r := range cfg.DomainTabLimits {
+		fmt.Printf("  %-30s at most %d Open WebBridge tab(s)\n", r.Domain, r.Max)
 	}
 }
 
@@ -428,6 +509,12 @@ Commands:
                         frees), e.g.
                         open-webbridge ratelimit set xiaohongshu.com --per 5
                         open-webbridge ratelimit set douyin.com --per 10 --max 1
+  tablimit list
+  tablimit set <domain> --max N
+  tablimit clear <domain> | --all
+                        cap concurrent Open WebBridge tabs per domain (to avoid
+                        too many tabs for one site), e.g.
+                        open-webbridge tablimit set xiaohongshu.com --max 2
   version               print the version
 
 Source: https://github.com/zhizuzhefu/open-webbridge (AGPL-3.0)

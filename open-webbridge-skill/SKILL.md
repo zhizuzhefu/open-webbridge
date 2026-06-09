@@ -184,8 +184,28 @@ open-webbridge ratelimit clear --all        # remove all
 - `open-webbridge status` includes the active `rate_limits` so you can see what's
   in effect.
 
-Setting a limit changes daemon config and **restarts the daemon** (briefly drops
-the extension connection), like `open-webbridge bind`.
+Setting a limit changes daemon config. Rate limit and per-domain tab limit
+changes are **hot reloaded** — rate limits take effect on the next `navigate`,
+and tab limits take effect on the next tab-related tool call without restarting
+the daemon (the connection to the browser is not dropped).
+
+## Per-domain tab count limits (avoid too many tabs for one site)
+
+In addition to rate limiting *how fast* you hit a site, you can limit *how many*
+concurrent Open WebBridge tabs are allowed for URLs under a domain:
+
+```bash
+open-webbridge tablimit set xiaohongshu.com --max 2   # at most 2 tabs for this site (and subdomains)
+open-webbridge tablimit list
+open-webbridge tablimit clear xiaohongshu.com
+open-webbridge tablimit clear --all
+```
+
+- The most specific (longest) matching domain wins.
+- The cap is enforced before Open WebBridge creates, navigates, or binds a managed tab for a matching host.
+- Reusing an existing session tab for that domain is allowed because the current tab is excluded from the count before it is re-navigated.
+- `open-webbridge status` includes the active `domain_tab_limits` and (for rate limits) live `rate_limit_status` with `in_use` and `wait_seconds`.
+- This is the per-domain version of controlling tab quantity (the old global `max_tabs` / `tablimit set N` worked the same way but applied to all sites).
 
 ## Known limitations
 

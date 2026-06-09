@@ -20,7 +20,7 @@ import (
 // Version is the daemon version. It is a var (not a const) so the release build
 // can stamp it from the git tag via -ldflags "-X …/config.Version=<tag>". The
 // default below is the fallback for plain `go build` / source installs.
-var Version = "1.3.2"
+var Version = "1.4.0"
 
 // ProtocolVersion is the wire-protocol contract between the daemon and the
 // extension. The two are compatible iff their ProtocolVersion matches — their
@@ -29,7 +29,7 @@ var Version = "1.3.2"
 // Bump this (on BOTH sides) ONLY when the daemon↔extension message format
 // changes incompatibly. Ordinary daemon or extension releases keep it the same,
 // so a daemon patch never forces an extension re-release (or vice versa).
-const ProtocolVersion = 1
+const ProtocolVersion = 2
 
 // Repo is the GitHub slug used for self-update and release downloads.
 const Repo = "zhizuzhefu/open-webbridge"
@@ -118,6 +118,13 @@ type Config struct {
 	// generic, site-agnostic mechanism — keys are plain domains, never anything
 	// hardcoded about a specific site.
 	RateLimits []RateLimit `json:"rate_limits,omitempty"`
+	// DomainTabLimits caps the number of concurrently open OWB-managed tabs per
+	// domain (suffix match). This lets you say "at most 2 tabs for xiaohongshu.com"
+	// in addition to (or instead of) a global max_tabs and rate limits.
+	// Enforcement happens in the browser extension before managed tabs are
+	// created, navigated to a matching host, or bound into a session.
+	// Empty means no per-domain tab caps.
+	DomainTabLimits []DomainTabLimit `json:"domain_tab_limits,omitempty"`
 }
 
 // RateLimit caps navigations to one domain. Domain is matched against the
@@ -158,6 +165,47 @@ func (c *Config) ClearRateLimit(domain string) bool {
 		out = append(out, r)
 	}
 	c.RateLimits = out
+	return found
+}
+
+// DomainTabLimit caps the number of *concurrently open* Open WebBridge-managed
+// tabs for URLs under a domain (suffix match, most specific rule wins).
+// This is the per-domain equivalent of the (global) tab count limit.
+// It is enforced inside the browser extension before managed tabs are created,
+// navigated to a matching host, or bound into a session.
+type DomainTabLimit struct {
+	Domain string `json:"domain"`
+	// Max is the maximum number of OWB-managed tabs whose current host matches
+	// this domain (or a subdomain) that may be open at the same time. <=0 disables.
+	Max int `json:"max"`
+}
+
+// SetDomainTabLimit adds or replaces the per-domain tab cap for the given domain.
+func (c *Config) SetDomainTabLimit(domain string, max int) {
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	for i := range c.DomainTabLimits {
+		if strings.ToLower(c.DomainTabLimits[i].Domain) == domain {
+			c.DomainTabLimits[i] = DomainTabLimit{Domain: domain, Max: max}
+			return
+		}
+	}
+	c.DomainTabLimits = append(c.DomainTabLimits, DomainTabLimit{Domain: domain, Max: max})
+}
+
+// ClearDomainTabLimit removes the per-domain tab cap for domain (case-insensitive).
+// Returns whether a rule was removed.
+func (c *Config) ClearDomainTabLimit(domain string) bool {
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	out := c.DomainTabLimits[:0]
+	found := false
+	for _, r := range c.DomainTabLimits {
+		if strings.ToLower(r.Domain) == domain {
+			found = true
+			continue
+		}
+		out = append(out, r)
+	}
+	c.DomainTabLimits = out
 	return found
 }
 

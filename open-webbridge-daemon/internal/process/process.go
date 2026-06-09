@@ -213,6 +213,9 @@ func getStatus(cfg *config.Config) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, cfg.LocalBaseURL()+"/status", nil)
+	if cfg.Token != "" {
+		req.Header.Set("X-OWB-Token", cfg.Token)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err

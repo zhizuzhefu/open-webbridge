@@ -73,6 +73,50 @@ func TestWouldExceedDeadline(t *testing.T) {
 	}
 }
 
+func TestCanceledWaitDoesNotConsumeSlot(t *testing.T) {
+	l := New([]config.RateLimit{{Domain: "cancel.com", Max: 1, Window: 1}})
+
+	if _, err := l.Wait(context.Background(), "https://cancel.com/a"); err != nil {
+		t.Fatalf("first call err: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if _, err := l.Wait(ctx, "https://cancel.com/b"); err == nil {
+		t.Fatal("second call should be cancelled while waiting")
+	}
+
+	time.Sleep(1050 * time.Millisecond)
+	wait, err := l.Wait(context.Background(), "https://cancel.com/c")
+	if err != nil {
+		t.Fatalf("third call err: %v", err)
+	}
+	if wait > 100*time.Millisecond {
+		t.Fatalf("cancelled wait should not consume a future slot; got wait=%v", wait)
+	}
+}
+
+func TestRolledBackReservationDoesNotConsumeSlot(t *testing.T) {
+	l := New([]config.RateLimit{{Domain: "rollback.com", Max: 1, Window: 1}})
+
+	res, wait, err := l.Reserve(context.Background(), "https://rollback.com/a")
+	if err != nil {
+		t.Fatalf("reserve err: %v", err)
+	}
+	if wait != 0 {
+		t.Fatalf("first reservation should be immediate, got wait=%v", wait)
+	}
+	res.Rollback()
+
+	wait, err = l.Wait(context.Background(), "https://rollback.com/b")
+	if err != nil {
+		t.Fatalf("second call err: %v", err)
+	}
+	if wait > 100*time.Millisecond {
+		t.Fatalf("rolled-back reservation should not consume a slot; got wait=%v", wait)
+	}
+}
+
 func TestMostSpecificRuleWins(t *testing.T) {
 	l := New([]config.RateLimit{
 		{Domain: "example.com", Max: 1, Window: 100},
@@ -83,5 +127,15 @@ func TestMostSpecificRuleWins(t *testing.T) {
 	}
 	if r := l.match("www.example.com"); r == nil || r.Domain != "example.com" {
 		t.Fatalf("want example.com rule, got %+v", r)
+	}
+}
+
+func TestMostSpecificRuleIgnoresDomainWhitespace(t *testing.T) {
+	l := New([]config.RateLimit{
+		{Domain: "example.com                         ", Max: 1, Window: 100},
+		{Domain: "api.example.com", Max: 5, Window: 1},
+	})
+	if r := l.match("api.example.com"); r == nil || r.Domain != "api.example.com" {
+		t.Fatalf("want api.example.com rule, got %+v", r)
 	}
 }

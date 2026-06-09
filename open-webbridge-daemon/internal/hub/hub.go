@@ -249,7 +249,7 @@ func (h *Hub) keepalive(conn *wsserver.Conn, stop chan struct{}) {
 // second tool_call to the extension until the previous one for that session has
 // returned, so two agents driving the same tab queue instead of racing on CDP.
 // Distinct sessions run concurrently.
-func (h *Hub) Call(ctx context.Context, action string, args json.RawMessage, session string) (json.RawMessage, error) {
+func (h *Hub) Call(ctx context.Context, action string, args json.RawMessage, session string, domainTabLimits []config.DomainTabLimit) (json.RawMessage, error) {
 	key := sessionKey(session)
 	if err := h.acquireSession(ctx, key); err != nil {
 		return nil, err
@@ -276,7 +276,7 @@ func (h *Hub) Call(ctx context.Context, action string, args json.RawMessage, ses
 	conn := h.conn
 	h.mu.Unlock()
 
-	env := protocol.Envelope{Type: "tool_call", ID: id, Action: action, Args: args, Session: session}
+	env := protocol.Envelope{Type: "tool_call", ID: id, Action: action, Args: args, Session: session, DomainTabLimits: domainTabLimits}
 	if err := writeJSON(conn, env); err != nil {
 		h.dropPending(id)
 		return nil, err

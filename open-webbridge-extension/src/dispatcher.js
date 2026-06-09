@@ -47,10 +47,10 @@ const handlers = {
   cookies,
 };
 
-export async function dispatch(action, args, session) {
+export async function dispatch(action, args, session, options) {
   const handler = handlers[action];
   if (!handler) throw new Error(`unknown action: ${action}`);
-  return handler(args || {}, session || "default");
+  return handler(args || {}, session || "default", options || {});
 }
 
 export function actionNames() {

@@ -1,6 +1,6 @@
 {
   "name": "open-webbridge-extension",
-  "version": "1.3.2",
+  "version": "1.4.0",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -8,7 +8,8 @@
   "scripts": {
     "build": "node build.mjs --mode store --out dist",
     "build:obfuscated": "node build.mjs --mode release --out dist-obf",
-    "check": "node --check src/background.js"
+    "check": "node --check src/background.js",
+    "test": "node --test src/*.test.js"
   },
   "devDependencies": {
     "esbuild": "^0.24.2",

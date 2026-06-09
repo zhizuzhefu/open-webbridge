@@ -5,10 +5,60 @@
 
 import { cdp } from "./cdp.js";
 import { clearRefs } from "./refs.js";
+import { assertDomainTabLimits } from "./tablimit.js";
 
 const sessions = new Map(); // name -> { groupId, activeTabId, tabIds:Set<number> }
+const OWNED_GROUPS_KEY = "owb_owned_groups";
 
 const sessionKey = (name) => name || "default";
+let tabMutationTail = Promise.resolve();
+
+export function withTabMutationLock(fn) {
+  const run = tabMutationTail.catch(() => {}).then(fn);
+  tabMutationTail = run.catch(() => {});
+  return run;
+}
+
+async function loadOwnedGroups() {
+  try {
+    const got = await chrome.storage.local.get(OWNED_GROUPS_KEY);
+    const owned = got[OWNED_GROUPS_KEY];
+    return owned && typeof owned === "object" ? owned : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveOwnedGroups(owned) {
+  try {
+    await chrome.storage.local.set({ [OWNED_GROUPS_KEY]: owned });
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+async function rememberOwnedGroup(name, groupId) {
+  if (groupId == null) return;
+  const owned = await loadOwnedGroups();
+  owned[String(groupId)] = sessionKey(name);
+  await saveOwnedGroups(owned);
+}
+
+async function forgetOwnedGroup(groupId) {
+  if (groupId == null) return;
+  const owned = await loadOwnedGroups();
+  delete owned[String(groupId)];
+  await saveOwnedGroups(owned);
+}
+
+async function forgetOwnedSession(name) {
+  const key = sessionKey(name);
+  const owned = await loadOwnedGroups();
+  for (const groupId of Object.keys(owned)) {
+    if (owned[groupId] === key) delete owned[groupId];
+  }
+  await saveOwnedGroups(owned);
+}
 
 export function getSession(name) {
   const key = sessionKey(name);
@@ -33,6 +83,7 @@ export function getSession(name) {
 export async function reconcile(name) {
   const key = sessionKey(name);
   const s = getSession(name);
+  const ownedGroups = await loadOwnedGroups();
   let all;
   try {
     all = await chrome.tabGroups.query({});
@@ -41,7 +92,9 @@ export async function reconcile(name) {
   }
   // Exact-title match in JS rather than via the query filter so titles with
   // special characters (our session names can be arbitrary) compare reliably.
-  const groups = all.filter((g) => (g.title || "") === key);
+  // Also recover groups by persisted ownership so a custom group_title does not
+  // make a live session disappear after the service worker restarts.
+  const groups = all.filter((g) => (g.title || "") === key || ownedGroups[String(g.id)] === key);
   if (groups.length === 0) {
     // Drop a groupId pointing at a group Chrome no longer has.
     if (s.groupId != null && !all.some((g) => g.id === s.groupId)) s.groupId = null;
@@ -52,6 +105,7 @@ export async function reconcile(name) {
   // the session so close_session reaches them all.
   s.groupId = groups[0].id;
   for (const g of groups) {
+    await rememberOwnedGroup(name, g.id);
     let tabs;
     try {
       tabs = await chrome.tabs.query({ groupId: g.id });
@@ -69,9 +123,11 @@ export async function reconcile(name) {
 // trackedGroupIds returns the Chrome group IDs the in-memory map currently owns,
 // so callers can tell which live groups are orphaned (present in Chrome but not
 // adopted by any session).
-export function trackedGroupIds() {
+export async function trackedGroupIds() {
   const ids = new Set();
   for (const s of sessions.values()) if (s.groupId != null) ids.add(s.groupId);
+  const ownedGroups = await loadOwnedGroups();
+  for (const groupId of Object.keys(ownedGroups)) ids.add(Number(groupId));
   return ids;
 }
 
@@ -85,20 +141,21 @@ async function tabExists(tabId) {
   }
 }
 
-// acquireTab returns a usable tab for the session, creating one when needed.
-export async function acquireTab(name, { newTab } = {}) {
-  // Recover any orphaned group/tab first so we reuse it instead of duplicating.
+export async function acquireTabForNavigation(name, { newTab, domainTabLimits, targetUrl } = {}) {
   const s = await reconcile(name);
-  if (!newTab && (await tabExists(s.activeTabId))) {
+  const activeExists = await tabExists(s.activeTabId);
+  if (!newTab && activeExists) {
+    await ensureDomainTabLimits(domainTabLimits, targetUrl, { excludeTabId: s.activeTabId });
     return s.activeTabId;
   }
-  // newTab:true on a session that already has a live tab REPLACES that tab
-  // rather than leaving it open. A session models one logical slot; without
-  // this, repeatedly navigating with newTab:true piled up orphan tabs that
-  // close_tab (which only closes the active one) could never reclaim.
-  if (newTab && (await tabExists(s.activeTabId))) {
-    await closeActiveTab(name);
+
+  const replacedTabId = newTab && activeExists ? s.activeTabId : null;
+  await ensureDomainTabLimits(domainTabLimits, targetUrl, { excludeTabId: replacedTabId });
+  if (replacedTabId != null) {
+    const closed = await closeActiveTab(name);
+    if (!closed) throw new Error(`could not close existing session tab ${replacedTabId}`);
   }
+
   const tab = await chrome.tabs.create({ url: "about:blank", active: false });
   s.tabIds.add(tab.id);
   s.activeTabId = tab.id;
@@ -106,15 +163,75 @@ export async function acquireTab(name, { newTab } = {}) {
   return tab.id;
 }
 
+// ensureDomainTabLimits checks per-domain concurrent tab caps (most specific wins).
+// If targetUrl is provided, we only evaluate the rule(s) that would apply to the
+// host being navigated to (precise, preferred path from navigate).
+// Otherwise we check all rules (conservative).
+export async function ensureDomainTabLimits(limits, targetUrl, { excludeTabId } = {}) {
+  if (!Array.isArray(limits) || limits.length === 0) return;
+
+  const candidateIds = await collectManagedTabIds();
+  if (excludeTabId != null) candidateIds.delete(Number(excludeTabId));
+
+  const tabUrls = [];
+  for (const id of candidateIds) {
+    try {
+      const t = await chrome.tabs.get(id);
+      tabUrls.push((t && (t.pendingUrl || t.url)) || "");
+    } catch {
+      // tab disappeared; ignore
+    }
+  }
+  assertDomainTabLimits(limits, targetUrl, tabUrls);
+}
+
+async function collectManagedTabIds() {
+  const candidateIds = new Set();
+  for (const sess of sessions.values()) {
+    for (const id of sess.tabIds) {
+      if (await tabExists(id)) candidateIds.add(id);
+    }
+  }
+
+  let groups = [];
+  try {
+    groups = await chrome.tabGroups.query({});
+  } catch {
+    return candidateIds;
+  }
+  const ownedGroups = await loadOwnedGroups();
+  const inMemoryGroups = new Set();
+  const knownSessionTitles = new Set(sessions.keys());
+  for (const sess of sessions.values()) {
+    if (sess.groupId != null) inMemoryGroups.add(sess.groupId);
+  }
+
+  for (const g of groups) {
+    const owned = ownedGroups[String(g.id)] != null;
+    const tracked = inMemoryGroups.has(g.id) || knownSessionTitles.has(g.title || "");
+    if (!owned && !tracked) continue;
+    let tabs;
+    try {
+      tabs = await chrome.tabs.query({ groupId: g.id });
+    } catch {
+      continue;
+    }
+    for (const t of tabs) candidateIds.add(t.id);
+  }
+  return candidateIds;
+}
+
 async function groupTab(name, tabId) {
   const s = getSession(name);
   try {
     if (s.groupId != null) {
       await chrome.tabs.group({ tabIds: [tabId], groupId: s.groupId });
+      await rememberOwnedGroup(name, s.groupId);
     } else {
       const groupId = await chrome.tabs.group({ tabIds: [tabId] });
       s.groupId = groupId;
       await chrome.tabGroups.update(groupId, { title: name || "default" });
+      await rememberOwnedGroup(name, groupId);
     }
   } catch {
     // Grouping is best-effort (e.g. tab already closed); ignore.
@@ -126,6 +243,7 @@ export async function setGroupTitle(name, title) {
   if (s.groupId != null) {
     try {
       await chrome.tabGroups.update(s.groupId, { title });
+      await rememberOwnedGroup(name, s.groupId);
     } catch {
       /* ignore */
     }
@@ -151,16 +269,23 @@ export async function closeActiveTab(name) {
   const s = getSession(name);
   if (s.activeTabId == null) return false;
   const id = s.activeTabId;
-  await cdp.detach(id).catch(() => {});
-  try {
-    await chrome.tabs.remove(id);
-  } catch {
-    /* already gone */
-  }
+  if (!(await removeManagedTab(id))) return false;
   s.tabIds.delete(id);
-  clearRefs(id);
   s.activeTabId = s.tabIds.size ? [...s.tabIds][s.tabIds.size - 1] : null;
   return true;
+}
+
+async function removeManagedTab(tabId) {
+  await cdp.detach(tabId).catch(() => {});
+  try {
+    await chrome.tabs.remove(tabId);
+    clearRefs(tabId);
+    return true;
+  } catch {
+    if (await tabExists(tabId)) return false;
+    clearRefs(tabId);
+    return true;
+  }
 }
 
 export async function closeSession(name) {
@@ -170,16 +295,17 @@ export async function closeSession(name) {
   const s = await reconcile(name);
   let closed = 0;
   for (const id of [...s.tabIds]) {
-    await cdp.detach(id).catch(() => {});
-    clearRefs(id);
-    try {
-      await chrome.tabs.remove(id);
+    if (await removeManagedTab(id)) {
+      s.tabIds.delete(id);
       closed++;
-    } catch {
-      /* already gone */
     }
   }
-  sessions.delete(sessionKey(name));
+  if (s.tabIds.size === 0) {
+    sessions.delete(sessionKey(name));
+    await forgetOwnedSession(name);
+  } else if (!(await tabExists(s.activeTabId))) {
+    s.activeTabId = [...s.tabIds][s.tabIds.size - 1] || null;
+  }
   return closed;
 }
 
@@ -196,16 +322,15 @@ export async function closeGroup(groupId) {
     return 0;
   }
   let closed = 0;
+  let remaining = 0;
   for (const t of tabs) {
-    await cdp.detach(t.id).catch(() => {});
-    clearRefs(t.id);
-    try {
-      await chrome.tabs.remove(t.id);
+    if (await removeManagedTab(t.id)) {
       closed++;
-    } catch {
-      /* already gone */
+    } else {
+      remaining++;
     }
   }
+  if (remaining === 0) await forgetOwnedGroup(groupId);
   return closed;
 }
 

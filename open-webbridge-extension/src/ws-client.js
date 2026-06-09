@@ -14,7 +14,7 @@ const REJECTED_RECONNECT_MS = 30000;
 // Wire-protocol contract with the daemon. The extension and daemon are
 // compatible iff their PROTOCOL_VERSION matches; their release versions are
 // independent. Bump (on BOTH sides) only on an incompatible message-format change.
-const PROTOCOL_VERSION = 1;
+const PROTOCOL_VERSION = 2;
 const STORE = { url: "owb_ws_url", reconnect: "owb_should_reconnect", notice: "owb_notice" };
 
 let socket = null;
@@ -225,7 +225,8 @@ function onRejected(payload) {
 
 async function handleToolCall(msg) {
   try {
-    const data = await dispatch(msg.action, msg.args, msg.session);
+    const opts = { domainTabLimits: msg.domain_tab_limits || [] };
+    const data = await dispatch(msg.action, msg.args, msg.session, opts);
     send({ type: "tool_result", id: msg.id, ok: true, data });
   } catch (e) {
     send({ type: "tool_result", id: msg.id, ok: false, error: (e && e.message) || String(e) });
