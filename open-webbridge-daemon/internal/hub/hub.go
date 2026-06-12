@@ -20,24 +20,31 @@ import (
 // ErrNoExtension is returned by Call when no browser extension is attached.
 var ErrNoExtension = errors.New("no browser extension connected — open your browser and make sure the Open WebBridge extension is enabled")
 
-// staleAfter is how long without any inbound message (pongs arrive every ~20s)
+// staleAfter is how long without any inbound message (pongs arrive every ~4s)
 // before an existing extension connection is considered dead and a newcomer is
 // allowed to take over instead of being rejected.
 const staleAfter = 50 * time.Second
+
+const (
+	keepaliveInterval             = 4 * time.Second
+	defaultExtensionReconnectWait = 30 * time.Second
+)
 
 // Hub multiplexes tool calls over one extension connection.
 type Hub struct {
 	daemonVersion string
 
-	mu           sync.Mutex
-	conn         *wsserver.Conn
-	extVer       string
-	extProtocol  int
-	connected    bool
-	compatible   bool
-	lastActivity time.Time
-	seq          uint64
-	pending      map[string]chan protocol.Envelope
+	mu            sync.Mutex
+	conn          *wsserver.Conn
+	extVer        string
+	extProtocol   int
+	connected     bool
+	compatible    bool
+	lastActivity  time.Time
+	seq           uint64
+	pending       map[string]chan protocol.Envelope
+	stateChanged  chan struct{}
+	reconnectWait time.Duration
 
 	// sessLocks serializes calls that target the same session. A session maps
 	// to a single browser tab, so two concurrent tool_calls would race two CDP
@@ -50,6 +57,8 @@ func New(daemonVersion string) *Hub {
 	return &Hub{
 		daemonVersion: daemonVersion,
 		pending:       make(map[string]chan protocol.Envelope),
+		stateChanged:  make(chan struct{}),
+		reconnectWait: defaultExtensionReconnectWait,
 		sessLocks:     make(map[string]chan struct{}),
 	}
 }
@@ -115,6 +124,11 @@ func (h *Hub) Compatible() bool {
 	return h.connected && h.compatible
 }
 
+func (h *Hub) notifyStateChangedLocked() {
+	close(h.stateChanged)
+	h.stateChanged = make(chan struct{})
+}
+
 // Serve takes ownership of a freshly upgraded connection and blocks until it
 // closes.
 //
@@ -143,6 +157,7 @@ func (h *Hub) Serve(conn *wsserver.Conn) {
 	h.connected = true
 	h.compatible = true // optimistic until hello is evaluated
 	h.lastActivity = time.Now()
+	h.notifyStateChangedLocked()
 	h.mu.Unlock()
 	log.Printf("[hub] extension connected")
 
@@ -156,6 +171,7 @@ func (h *Hub) Serve(conn *wsserver.Conn) {
 			h.conn = nil
 			h.connected = false
 			h.extVer = ""
+			h.notifyStateChangedLocked()
 			for id, ch := range h.pending {
 				ch <- protocol.Envelope{Type: "tool_result", ID: id, OK: protocol.BoolPtr(false), Error: "extension disconnected"}
 				delete(h.pending, id)
@@ -229,7 +245,7 @@ func (h *Hub) handleInbound(conn *wsserver.Conn, env protocol.Envelope) {
 }
 
 func (h *Hub) keepalive(conn *wsserver.Conn, stop chan struct{}) {
-	t := time.NewTicker(20 * time.Second)
+	t := time.NewTicker(keepaliveInterval)
 	defer t.Stop()
 	for {
 		select {
@@ -239,6 +255,40 @@ func (h *Hub) keepalive(conn *wsserver.Conn, stop chan struct{}) {
 			if err := writeJSON(conn, protocol.Envelope{Type: "ping"}); err != nil {
 				return
 			}
+		}
+	}
+}
+
+func (h *Hub) waitForExtension(ctx context.Context) error {
+	wait := h.reconnectWait
+	if wait <= 0 {
+		h.mu.Lock()
+		connected := h.connected && h.conn != nil
+		h.mu.Unlock()
+		if connected {
+			return nil
+		}
+		return ErrNoExtension
+	}
+
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+
+	for {
+		h.mu.Lock()
+		if h.connected && h.conn != nil {
+			h.mu.Unlock()
+			return nil
+		}
+		changed := h.stateChanged
+		h.mu.Unlock()
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+			return ErrNoExtension
+		case <-changed:
 		}
 	}
 }
@@ -255,6 +305,10 @@ func (h *Hub) Call(ctx context.Context, action string, args json.RawMessage, ses
 		return nil, err
 	}
 	defer h.releaseSession(key)
+
+	if err := h.waitForExtension(ctx); err != nil {
+		return nil, err
+	}
 
 	h.mu.Lock()
 	if !h.connected || h.conn == nil {

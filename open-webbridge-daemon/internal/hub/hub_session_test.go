@@ -6,6 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon/internal/wsserver"
 )
 
 // Same session must be mutually exclusive: at no point may two holders be in
@@ -108,10 +110,51 @@ func TestAcquireSession_ContextCancelWhileQueued(t *testing.T) {
 	}
 }
 
+func TestWaitForExtension_WaitsForReconnect(t *testing.T) {
+	h := New("test")
+	h.reconnectWait = time.Second
+
+	errc := make(chan error, 1)
+	go func() {
+		errc <- h.waitForExtension(context.Background())
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	h.mu.Lock()
+	h.conn = &wsserver.Conn{}
+	h.connected = true
+	h.notifyStateChangedLocked()
+	h.mu.Unlock()
+
+	select {
+	case err := <-errc:
+		if err != nil {
+			t.Fatalf("waitForExtension returned error after reconnect: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("waitForExtension did not unblock after reconnect")
+	}
+}
+
+func TestWaitForExtension_Timeout(t *testing.T) {
+	h := New("test")
+	h.reconnectWait = 20 * time.Millisecond
+
+	start := time.Now()
+	err := h.waitForExtension(context.Background())
+	if err != ErrNoExtension {
+		t.Fatalf("got %v, want ErrNoExtension", err)
+	}
+	if time.Since(start) > time.Second {
+		t.Fatalf("waitForExtension did not honor reconnect timeout promptly: waited %v", time.Since(start))
+	}
+}
+
 // Call must acquire and release the session lock even when no extension is
 // attached, so a failed call never strands the session.
 func TestCall_NoExtensionReleasesSession(t *testing.T) {
 	h := New("test")
+	h.reconnectWait = time.Millisecond
 	for i := 0; i < 3; i++ {
 		_, err := h.Call(context.Background(), "noop", nil, "s1", nil)
 		if err != ErrNoExtension {
