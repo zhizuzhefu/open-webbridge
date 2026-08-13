@@ -60,6 +60,21 @@ if [[ "$NO_SKILL" -eq 0 ]]; then
   for base in "${CANDIDATES[@]}"; do
     if [[ -d "$base" ]]; then
       dest="$base/open-webbridge"
+      # A symlinked skill means this machine keeps its skills somewhere else and
+      # links them in (a common layout, e.g. one repo holding every agent skill).
+      # Blowing the link away and dropping a copy in its place would silently
+      # fork that setup, so write through the link to the real directory instead.
+      if [[ -L "$dest" ]]; then
+        target="$(cd "$(dirname "$dest")" && cd "$(dirname "$(readlink "$dest")")" 2>/dev/null && pwd)/$(basename "$(readlink "$dest")")"
+        if [[ -d "$target" ]]; then
+          cp -R "$SKILL_DIR/." "$target/"
+          echo "    -> $dest (symlink; updated $target)"
+          installed_any=1
+          continue
+        fi
+        echo "    !! $dest is a symlink to a missing target; skipped"
+        continue
+      fi
       rm -rf "$dest"
       mkdir -p "$dest"
       cp -R "$SKILL_DIR/." "$dest/"
