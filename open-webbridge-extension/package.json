@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
-  "description": "Build pipeline for the Open WebBridge extension: bundle, minify, and obfuscate into dist/ for release.",
+  "description": "Build pipeline for the Open WebBridge extension: bundle, minify, and obfuscate into dist/ for release. `npm run package` also writes the Chrome Web Store upload zip to ../dist/ (same output as the release workflow).",
   "scripts": {
     "build": "node build.mjs --mode store --out dist",
     "build:obfuscated": "node build.mjs --mode release --out dist-obf",
+    "package": "npm run build && mkdir -p ../dist && rm -f ../dist/open-webbridge-extension.zip && cd dist && zip -r -q ../../dist/open-webbridge-extension.zip .",
     "check": "node --check src/background.js",
-    "test": "node --test src/*.test.js"
+    "test": "node --test src/*.test.js src/annotations/*.test.js"
   },
   "devDependencies": {
     "esbuild": "^0.24.2",

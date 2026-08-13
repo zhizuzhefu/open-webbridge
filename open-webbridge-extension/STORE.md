@@ -10,12 +10,17 @@ allowed), so the package you upload must be the minified build produced by
 ```bash
 cd open-webbridge-extension
 npm install
-npm run build                         # → dist/  (bundled + minified)
-( cd dist && zip -r ../open-webbridge-extension.zip . )   # manifest.json at the zip root
+npm run package     # → ../dist/open-webbridge-extension.zip  (manifest.json at the zip root)
 ```
 
-The release workflow also attaches this `open-webbridge-extension.zip` to every
-GitHub Release, so you can download it from there instead of building.
+`package` runs the same two steps the release workflow does — `npm run build`
+into `dist/`, then zip its *contents* (not the folder) — and writes the archive
+to the repository's git-ignored `dist/`. It deletes any previous archive first:
+`zip` updates an existing file in place, which would otherwise keep files that
+have since been removed from the build.
+
+The release workflow attaches an identical `open-webbridge-extension.zip` to
+every GitHub Release, so you can download it from there instead of building.
 
 ## 2. One-time developer setup
 
@@ -51,7 +56,7 @@ GitHub Release, so you can download it from there instead of building.
 ## 5. After approval
 
 The extension auto-updates for all users. To ship an update: bump the `version`
-in `manifest.json`, run `npm run build`, repackage, and upload the new zip.
+in `manifest.json`, run `npm run package`, and upload the new zip.
 
 ## Notes for reviewers
 
