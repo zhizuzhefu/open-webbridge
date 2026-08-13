@@ -63,6 +63,17 @@ func New(daemonVersion string) *Hub {
 	}
 }
 
+// sessionIndependentActions never touch a tab or a CDP target, so they must not
+// queue behind another call on the same session.
+//
+// `annotations` reads the extension's global annotation store and can be asked
+// to long-poll until a human leaves the next note; serialising it would park
+// every other call on that session for the whole poll. Only add an action here
+// if it genuinely cannot race with page work.
+var sessionIndependentActions = map[string]bool{
+	"annotations": true,
+}
+
 // sessionKey normalizes the session name. Empty is treated as "default" to
 // match the extension's own grouping (sessions.js: `name || "default"`), so a
 // call with no session and one with session="default" serialize together
@@ -300,11 +311,13 @@ func (h *Hub) waitForExtension(ctx context.Context) error {
 // returned, so two agents driving the same tab queue instead of racing on CDP.
 // Distinct sessions run concurrently.
 func (h *Hub) Call(ctx context.Context, action string, args json.RawMessage, session string, domainTabLimits []config.DomainTabLimit) (json.RawMessage, error) {
-	key := sessionKey(session)
-	if err := h.acquireSession(ctx, key); err != nil {
-		return nil, err
+	if !sessionIndependentActions[action] {
+		key := sessionKey(session)
+		if err := h.acquireSession(ctx, key); err != nil {
+			return nil, err
+		}
+		defer h.releaseSession(key)
 	}
-	defer h.releaseSession(key)
 
 	if err := h.waitForExtension(ctx); err != nil {
 		return nil, err

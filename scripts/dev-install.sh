@@ -35,8 +35,17 @@ CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$DAEMON_DIR/bin/open-webbr
 
 echo "==> Installing binary to $INSTALL_BIN_DIR"
 mkdir -p "$INSTALL_BIN_DIR"
-cp "$DAEMON_DIR/bin/open-webbridge" "$INSTALL_BIN_DIR/open-webbridge"
 BIN="$INSTALL_BIN_DIR/open-webbridge"
+# Install atomically, the same way the self-updater does. Copying *over* the
+# existing file would rewrite the inode a running daemon is executing from,
+# which invalidates its code signature — on macOS the next launch is then killed
+# outright ("Killed: 9"). Writing a new file and renaming it sidesteps that, and
+# the ad-hoc re-sign keeps Gatekeeper happy on Apple Silicon.
+cp "$DAEMON_DIR/bin/open-webbridge" "$BIN.new"
+chmod 0755 "$BIN.new"
+mv -f "$BIN.new" "$BIN"
+xattr -dr com.apple.quarantine "$BIN" 2>/dev/null || true
+codesign --force --sign - "$BIN" 2>/dev/null || true
 
 if [[ "$NO_SKILL" -eq 0 ]]; then
   echo "==> Installing skill"

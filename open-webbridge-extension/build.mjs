@@ -51,6 +51,22 @@ await build({
   outdir: dist,
 });
 
+// 1b) The in-page annotator is injected as a plain file by chrome.scripting, so
+//     it is built as a standalone IIFE (not an ES module) and keeps the same
+//     name at the package root as it has in the source tree — the injection
+//     path must be identical whether the extension is loaded unpacked from the
+//     repo or from dist/.
+await build({
+  absWorkingDir: root,
+  entryPoints: { annotator: "annotator.js" },
+  bundle: true,
+  format: "iife",
+  target: "chrome110",
+  minify: true,
+  legalComments: "none",
+  outdir: dist,
+});
+
 // 2) Obfuscate the bundled output. Conservative options: string-array + name
 //    mangling, but no control-flow flattening / dead-code injection so runtime
 //    behavior and performance are unaffected.
@@ -72,7 +88,7 @@ const OBF = {
 };
 
 if (mode === "release") {
-  for (const file of ["background.js", "popup.js"]) {
+  for (const file of ["background.js", "popup.js", "annotator.js"]) {
     const src = readFileSync(d(file), "utf8");
     const out = JavaScriptObfuscator.obfuscate(src, OBF).getObfuscatedCode();
     writeFileSync(d(file), out);

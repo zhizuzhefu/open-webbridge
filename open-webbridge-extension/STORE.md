@@ -39,7 +39,8 @@ GitHub Release, so you can download it from there instead of building.
    each permission:
    - `debugger` — drive pages via the developer protocol (the core feature).
    - `tabs`, `tabGroups`, `windows`, `activeTab` — open/group/activate tabs per task.
-   - `scripting` — support page interactions.
+   - `scripting` — inject the annotation overlay into a page the user puts into
+     annotation mode (on demand only; no persistent content scripts).
    - `storage` — remember the local connection address and token.
    - `alarms` — keep the background connection alive.
    - `downloads` — start and track downloads.

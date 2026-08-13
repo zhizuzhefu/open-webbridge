@@ -118,3 +118,7 @@ open-webbridge call navigate --session work --args '{"url":"https://example.com"
 | Tool calls time out | `open-webbridge logs -n 100` for `[error]`/`panic`. A page that never finishes loading can stall `navigate`. |
 | "debugger attach failed: ... another debugger" | DevTools is open on that tab, or another automation is attached. Close DevTools and retry. |
 | Element ref errors ("unknown element ref") | The page changed since the last `snapshot`. Take a fresh `snapshot`. |
+| `annotate` returns "cannot annotate a browser-internal page" | The target is a `chrome://` / extension / Web Store page, where extensions may not run. Ask the user to switch to a normal page, or pass the right `tabId`. |
+| `annotations {"op":"list"}` is empty after the user says they annotated | They may have annotated a different tab, or the notes are already resolved. Check `annotations {"op":"stats"}` and `annotate {"mode":"status"}` (which tabs are in annotation mode), then list with `"status":"all"`. |
+| Clicks do nothing on a page the user was annotating | Annotation mode swallows page clicks by design. Turn it off first: `annotate {"mode":"stop"}` (or `{"mode":"stop","all":true}`). |
+| `annotations {"op":"screenshot"}` says there is no screenshot | Only the most recent ~30 element screenshots are kept, and capture is skipped when the tab was not in the foreground. The comment and selector are still there. |

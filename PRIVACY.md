@@ -23,6 +23,11 @@ processing happens locally on your own machine.
   access token in the browser's local extension storage so it can reconnect.
 - **Captured files.** Screenshots and PDFs you request are written to a folder on
   your own computer (`~/.open-webbridge/files/`). They are not uploaded anywhere.
+- **Annotations.** If you use annotation mode, the comments you write, a
+  description of the element you attached them to, and a cropped screenshot of
+  that element are stored in the browser's local extension storage on your own
+  computer. They stay there until you clear them, and are readable only by the
+  local daemon on your machine.
 
 ## Network connections
 
@@ -41,7 +46,8 @@ the developer or to any third party.
   is the core function of the tool.
 - **`tabs`, `tabGroups`, `windows`, `activeTab`** — to open, group, activate, and
   manage tabs for each task.
-- **`scripting`** — supporting page interactions.
+- **`scripting`** — to inject the annotation overlay into a page, and only into
+  a page you explicitly put into annotation mode.
 - **`storage`** — to remember the local connection address and token.
 - **`alarms`** — to keep the background connection alive and reconnect.
 - **`downloads`** — to start and track file downloads you request.
@@ -86,6 +92,9 @@ Open WebBridge 是一款本地浏览器自动化工具,由一个 Chrome 扩展�
   重新连接。
 - **捕获的文件。** 你请求的截图与 PDF 会写入你自己电脑上的目录
   (`~/.open-webbridge/files/`),不会上传到任何地方。
+- **标注。** 若你使用标注模式,你写下的评论、所标注元素的描述,以及该元素的裁剪截图,
+  都保存在你自己电脑上浏览器的本地扩展存储中。它们会一直保留直到你清空,且只有你本机的
+  daemon 能读取。
 
 ## 网络连接
 
@@ -100,7 +109,7 @@ Open WebBridge 是一款本地浏览器自动化工具,由一个 Chrome 扩展�
 
 - **`debugger`** — 通过浏览器开发者协议驱动页面,这是本工具的核心功能。
 - **`tabs`、`tabGroups`、`windows`、`activeTab`** — 为每个任务打开、分组、激活和管理标签页。
-- **`scripting`** — 支持页面交互。
+- **`scripting`** — 把标注浮层注入页面,且只注入你明确开启标注模式的页面。
 - **`storage`** — 记住本地连接地址与令牌。
 - **`alarms`** — 保持后台连接存活并重连。
 - **`downloads`** — 启动并跟踪你请求的文件下载。

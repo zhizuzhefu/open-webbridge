@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Open WebBridge",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Local, telemetry-free bridge that lets AI agents drive your real browser via the Chrome DevTools Protocol.",
   "background": {
     "service_worker": "src/background.js",
@@ -18,8 +18,15 @@
     "alarms",
     "tabGroups",
     "windows",
-    "downloads"
+    "downloads",
+    "scripting"
   ],
+  "commands": {
+    "toggle-annotate": {
+      "suggested_key": { "default": "Alt+Shift+A" },
+      "description": "Toggle annotation mode on the current page"
+    }
+  },
   "host_permissions": ["<all_urls>"],
   "icons": {
     "16": "icon/16.png",

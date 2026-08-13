@@ -26,6 +26,9 @@ var safeName = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
 func MaybePersist(action string, data json.RawMessage) json.RawMessage {
 	switch action {
 	case "screenshot", "save_as_pdf":
+	case "annotations":
+		// Only the screenshot op carries a blob; every other op returns plain
+		// JSON with no "data" field and falls through untouched below.
 	default:
 		return data
 	}

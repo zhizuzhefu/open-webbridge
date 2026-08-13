@@ -5,10 +5,22 @@ const urlInput = $("url");
 const dot = $("dot");
 const statusText = $("status-text");
 const msg = $("msg");
+const annBtn = $("annotate");
+const annMsg = $("ann-msg");
 
 function setMsg(text, kind) {
   msg.textContent = text || "";
   msg.className = "msg" + (kind ? " " + kind : "");
+}
+
+function setAnnMsg(text, kind) {
+  annMsg.textContent = text || "";
+  annMsg.className = "msg" + (kind ? " " + kind : "");
+}
+
+function renderAnnotate(on) {
+  annBtn.textContent = on ? "Stop annotating" : "Start annotating";
+  annBtn.classList.toggle("active", !!on);
 }
 
 function render(connected, url) {
@@ -20,6 +32,7 @@ function render(connected, url) {
 async function refresh() {
   const st = await chrome.runtime.sendMessage({ type: "GET_STATUS" });
   render(st.connected, st.url);
+  renderAnnotate(st.annotating);
   // Restore last URL even when disconnected.
   if (!urlInput.value) {
     const saved = await chrome.storage.local.get(["owb_ws_url"]);
@@ -56,6 +69,20 @@ $("disconnect").addEventListener("click", async () => {
   await chrome.runtime.sendMessage({ type: "DISCONNECT" });
   setMsg("Disconnected.");
   setTimeout(refresh, 200);
+});
+
+annBtn.addEventListener("click", async () => {
+  setAnnMsg("");
+  const res = await chrome.runtime.sendMessage({ type: "TOGGLE_ANNOTATE" });
+  if (res && res.error) {
+    setAnnMsg(res.error, "err");
+    return;
+  }
+  renderAnnotate(res.annotating);
+  if (res.annotating) {
+    setAnnMsg("Click elements on the page to leave notes.", "ok");
+    setTimeout(() => window.close(), 700);
+  }
 });
 
 // Deep-link: popup.html?url=<ws>&connect=1 prefills and (optionally) connects.

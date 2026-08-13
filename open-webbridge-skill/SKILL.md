@@ -78,6 +78,8 @@ open-webbridge call snapshot --session research
 | `list_sessions` | — | `{sessions:[{session,groupId,color,tabCount,orphaned}]}` — every tab group in the browser, incl. **orphaned** ones left by a reload/update; use to find and clean up stragglers |
 | `activate_tab` | `tabId`(opt) | `{tabId}` — bring a tab to the foreground |
 | `close_tab` | — | `{closed}` — close the session's active tab |
+| `annotate` | `mode`(start\|stop\|toggle\|status\|locate), `tabId`(opt), `target`("active"), `id`(for locate) | `{mode, tabId, url, annotations_on_page}` — let the **human** mark elements on the page; see "Human annotations" below |
+| `annotations` | `op`(list\|get\|clear\|resolve\|reopen\|note\|screenshot\|stats), `status`, `url`, `ids`/`id`, `since`, `wait_ms`, `note`, `verbose` | `{count, annotations:[…], cursor}` — read/close out the notes a human left |
 | `close_session` | `groupId`(opt) | `{closed}` — close all the session's tabs (recovers orphans matching the name); pass `groupId` (from `list_sessions`) to close one specific orphan group; **call at task end** |
 
 Most element tools (`snapshot`, `click`, `fill`, `hover`, `scroll`, `press_key`,
@@ -206,6 +208,79 @@ open-webbridge tablimit clear --all
 - Reusing an existing session tab for that domain is allowed because the current tab is excluded from the count before it is re-navigated.
 - `open-webbridge status` includes the active `domain_tab_limits` and (for rate limits) live `rate_limit_status` with `in_use` and `wait_seconds`.
 - This is the per-domain version of controlling tab quantity (the old global `max_tabs` / `tablimit set N` worked the same way but applied to all sites).
+
+## Human annotations (the user points at elements, you read them)
+
+When the user says "this button is broken", "the layout here is wrong", or
+"let me show you what I mean", stop guessing from prose — have them **annotate
+the page**. They click elements directly; you read structured notes back, each
+carrying a resolvable selector and (usually) a screenshot of that element.
+
+**Turn it on** (or tell them to press `Alt+Shift+A`, or use the extension popup):
+
+```bash
+open-webbridge call annotate --args '{"mode":"start"}'
+```
+
+The page enters annotation mode: hovering highlights elements, a click opens a
+comment box (⌘/Ctrl+Enter saves, `⌥↑` selects the parent element, Esc exits).
+Existing notes appear as numbered pins. Without `tabId` this targets the
+session's tab, falling back to the tab the user is actually looking at — pass
+`{"target":"active"}` to force the latter, or `{"tabId":N}` to be explicit.
+
+**Wait for them to finish, then read:**
+
+```bash
+# block until the next new note arrives (or 90s pass), then print it
+open-webbridge call annotations --args '{"op":"list","wait_ms":90000,"since":0}'
+
+# just read everything still open
+open-webbridge call annotations --args '{"op":"list"}'
+```
+
+Each annotation looks like:
+
+```json
+{"id":"a3","status":"open","comment":"this never submits",
+ "url":"https://app.local/checkout","tags":["bug"],
+ "element":{"tag":"button","name":"Place order","selector":"[data-testid=\"submit\"]","unique":true},
+ "has_screenshot":true}
+```
+
+Use it like this:
+
+- `element.selector` is directly usable with `click`/`fill`. It is chosen from
+  the element's most stable identifier (test id → id → name → aria-label →
+  structural path); `unique:false` means it matched more than one element.
+- Before acting on an old note, confirm the element is still there:
+  `annotate {"mode":"locate","id":"a3"}` → `{found, strategy, matches, rect}`.
+  It also scrolls to and flashes the element, which is how you show the user
+  *you* found the right thing.
+- `annotations {"op":"screenshot","id":"a3"}` returns `{path}` — a cropped image
+  of that element written to disk. Read it when the note is visual ("looks
+  wrong", "misaligned").
+- `verbose:true` adds every fallback selector (xpath, css path), attributes, and
+  the element's ancestors.
+
+**Close the loop** — mark what you handled; the user sees it turn green on the
+page, with your reply attached:
+
+```bash
+open-webbridge call annotations --args '{"op":"resolve","ids":["a3"],"note":"Fixed: the submit handler was bailing on an empty coupon field."}'
+open-webbridge call annotations --args '{"op":"clear"}'                       # wipe everything
+open-webbridge call annotations --args '{"op":"clear","status":"resolved"}'   # only the handled ones
+```
+
+Notes:
+
+- The store lives in the browser profile and survives reloads, daemon restarts,
+  and navigation; `clear` is the only thing that empties it.
+- `annotations` is session-independent — a long `wait_ms` poll does **not**
+  block other tool calls on the same session, so you can keep working while
+  waiting.
+- Pass `since:<cursor>` (returned by every `list`) to fetch only what is new.
+- Annotation mode is a human input mode: it swallows clicks on the page, so turn
+  it off (`{"mode":"stop"}`) before driving that tab yourself.
 
 ## Known limitations
 

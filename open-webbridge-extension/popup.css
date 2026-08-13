@@ -146,6 +146,18 @@ button:disabled {
   cursor: default;
 }
 
+.rule {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 16px 0 14px;
+}
+
+button.ghost.active {
+  background: #fff5f5;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
 .msg {
   font-size: 12px;
   margin: 12px 0 0;

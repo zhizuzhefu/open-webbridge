@@ -110,6 +110,33 @@ func TestAcquireSession_ContextCancelWhileQueued(t *testing.T) {
 	}
 }
 
+// A long-polling `annotations` call must not hold the session lock, otherwise
+// waiting for a human's next note would block every page action on that session.
+func TestCall_SessionIndependentActionDoesNotHoldLock(t *testing.T) {
+	h := New("test")
+	h.reconnectWait = 50 * time.Millisecond
+
+	if err := h.acquireSession(context.Background(), "s1"); err != nil {
+		t.Fatalf("pre-acquire: %v", err)
+	}
+	defer h.releaseSession("s1")
+
+	// The session slot is taken. A session-bound action would queue behind it and
+	// hit the context deadline; annotations must reach the extension check and
+	// fail with ErrNoExtension instead.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if _, err := h.Call(ctx, "annotations", nil, "s1", nil); err != ErrNoExtension {
+		t.Fatalf("annotations: got %v, want ErrNoExtension (it must skip the session lock)", err)
+	}
+
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel2()
+	if _, err := h.Call(ctx2, "snapshot", nil, "s1", nil); err != context.DeadlineExceeded {
+		t.Fatalf("snapshot: got %v, want DeadlineExceeded (session-bound calls still serialize)", err)
+	}
+}
+
 func TestWaitForExtension_WaitsForReconnect(t *testing.T) {
 	h := New("test")
 	h.reconnectWait = time.Second

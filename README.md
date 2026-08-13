@@ -67,6 +67,9 @@ computer.
   logic.
 - **Capture output.** Save full-page or single-element screenshots and export
   pages to PDF. Captured files are written to disk and referenced by path.
+- **Annotate pages by hand.** Click elements in a live page and attach comments;
+  the agent reads them back with a usable selector and a picture of the element,
+  and marks each one handled — so "this is broken" points at something exact.
 - **Inspect and emulate.** Record network requests and responses; emulate device
   screen size, user agent, and geolocation.
 - **Manage files and pop-ups.** Start, list, and cancel downloads; handle native
@@ -325,6 +328,42 @@ whole profile's jar (filter with `domain`). Each cookie carries `httpOnly`,
 `secure`, `sameSite`, and `expires`; the result also includes a ready-to-paste
 `header` string for use as a request `Cookie:` header.
 
+### Annotations (marking up a page by hand)
+
+Annotations are element-level comments **you** leave on a real page, which the
+agent then reads back. They exist so that "this button is broken" becomes a note
+attached to that exact button — with a selector the agent can act on and a
+picture of it — instead of a paragraph of description.
+
+| Action | Arguments | Returns |
+|--------|-----------|---------|
+| `annotate` | `mode` (`start` / `stop` / `toggle` / `status` / `locate`); `tabId` (optional); `target` (`"active"` to use the tab you are viewing); `all` (bool, with `stop`); `id` (for `locate`) | `{ mode, tabId, url, annotations_on_page }` |
+| `annotations` | `op` (`list` / `get` / `clear` / `delete` / `resolve` / `reopen` / `note` / `screenshot` / `stats`); `status` (`open` / `resolved` / `all`); `url`, `tag`, `ids`, `id`, `since`, `limit`; `wait_ms`; `note`; `verbose` | `{ count, annotations, cursor }` |
+
+**Starting a session.** Press `Alt+Shift+A`, click **Start annotating** in the
+extension popup, or let the agent call `annotate {"mode":"start"}`. The page
+enters annotation mode: hovering outlines elements, clicking one opens a comment
+box (⌘/Ctrl+Enter saves, `⌥↑` walks up to the parent element, Esc leaves). Notes
+already on the page appear as numbered pins you can reopen, resolve, or delete.
+
+**What the agent receives.** Each note carries the comment, any tags, the page
+URL, and an element fingerprint: the most stable selector available (test id →
+id → name → aria-label → structural path), plus XPath, attributes, ancestors and
+geometry as fallbacks. A cropped screenshot of the element is captured
+automatically and fetched on demand with `annotations {"op":"screenshot","id":…}`,
+which writes a JPEG to `~/.open-webbridge/files/` and returns its path.
+
+**Closing the loop.** `annotations {"op":"resolve","ids":["a3"],"note":"…"}`
+marks a note handled and attaches the agent's reply — the pin turns green on the
+page and shows the reply, so you can see what was addressed without leaving the
+browser. `annotations {"op":"clear"}` empties the store.
+
+Annotations are stored in your browser profile, not in the daemon: they survive
+page reloads, navigation, daemon restarts, and running with no daemon at all.
+Nothing is sent anywhere. `annotate {"mode":"locate","id":"a3"}` re-finds an
+annotated element on the live page and reports which selector still matches —
+useful after a page has changed.
+
 ### Files and dialogs
 
 | Action | Arguments | Returns |
@@ -373,6 +412,24 @@ open-webbridge call save_as_pdf --session cap --args '{"paper_format":"a4","file
 open-webbridge call network --session net --args '{"cmd":"start"}'
 open-webbridge call navigate --session net --args '{"url":"https://example.com"}'
 open-webbridge call network --session net --args '{"cmd":"list","filter":"api"}'
+```
+
+**Point at what is wrong, instead of describing it:**
+
+```bash
+# 1. turn on annotation mode, then click the elements and type your comments
+open-webbridge call annotate --args '{"mode":"start"}'
+
+# 2. the agent waits for your notes (this does not block its other work)
+open-webbridge call annotations --args '{"op":"list","wait_ms":120000,"since":0}'
+
+# 3. it looks at one, checks the element is still there, and reads the picture
+open-webbridge call annotate    --args '{"mode":"locate","id":"a1"}'
+open-webbridge call annotations --args '{"op":"screenshot","id":"a1"}'
+
+# 4. it reports back on the note itself, and you see the pin turn green
+open-webbridge call annotations --args '{"op":"resolve","ids":["a1"],"note":"fixed"}'
+open-webbridge call annotations --args '{"op":"clear"}'
 ```
 
 **Run two jobs in parallel** by using distinct session names:

@@ -12,6 +12,7 @@ import { emulate } from "./tools/emulate.js";
 import { download } from "./tools/downloads.js";
 import { dialog } from "./tools/dialogs.js";
 import { cookies } from "./tools/cookies.js";
+import { annotate, annotations } from "./tools/annotate.js";
 
 const handlers = {
   // tabs / sessions
@@ -39,6 +40,9 @@ const handlers = {
   // capture
   screenshot: capture.screenshot,
   save_as_pdf: capture.save_as_pdf,
+  // human ↔ AI annotations
+  annotate,
+  annotations,
   // network / emulation / downloads / dialogs / cookies
   network,
   emulate,

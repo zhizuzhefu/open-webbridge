@@ -56,6 +56,9 @@ Open WebBridge 由三个部分组成,只需安装一次:
   按键、拖拽、轻触、上传文件。
 - **运行 JavaScript**:在页面上下文中执行,读取值或实现自定义逻辑。
 - **捕获输出。** 保存整页或单个元素的截图,导出页面为 PDF。文件写入磁盘并以路径返回。
+- **在页面上手工标注。** 直接点击真实页面上的元素并写下评论;AI 读回这些标注时,
+  能拿到可用的选择器和该元素的截图,并逐条标记为已处理——让“这里有问题”精确落到
+  某个元素上,而不只是一段描述。
 - **检查与模拟。** 记录网络请求与响应;模拟设备屏幕尺寸、User-Agent 与地理位置。
 - **管理文件与弹窗。** 启动、列出、取消下载;自动处理浏览器原生对话框
   (alert / confirm / prompt),使任务不会卡死。
@@ -287,6 +290,37 @@ open-webbridge call <action> [--session NAME] [--args '<json>'] [json] \
 每条 Cookie 都带 `httpOnly`、`secure`、`sameSite`、`expires`;返回值还含一个可直接粘贴的 `header`
 字符串,可直接用作请求的 `Cookie:` 头。
 
+### 标注(在页面上手工标记)
+
+标注是**你**在真实页面上留在具体元素上的评论,随后由 AI 读回。它的意义在于:
+把“这个按钮坏了”变成挂在那个按钮上的一条记录——带着 AI 可以直接使用的选择器,
+以及该元素的截图——而不是一大段文字描述。
+
+| 动作 | 参数 | 返回 |
+|------|------|------|
+| `annotate` | `mode`(`start` / `stop` / `toggle` / `status` / `locate`);`tabId`(可选);`target`(`"active"` 表示用你正在看的标签页);`all`(布尔,配合 `stop`);`id`(用于 `locate`) | `{ mode, tabId, url, annotations_on_page }` |
+| `annotations` | `op`(`list` / `get` / `clear` / `delete` / `resolve` / `reopen` / `note` / `screenshot` / `stats`);`status`(`open` / `resolved` / `all`);`url`、`tag`、`ids`、`id`、`since`、`limit`;`wait_ms`;`note`;`verbose` | `{ count, annotations, cursor }` |
+
+**开始标注。** 按 `Alt+Shift+A`、在扩展弹窗里点 **Start annotating**,或让 AI 调用
+`annotate {"mode":"start"}`。页面随即进入标注模式:悬停会高亮元素,点击某个元素弹出
+评论框(⌘/Ctrl+Enter 保存,`⌥↑` 向上选中父元素,Esc 退出)。已有的标注以带编号的
+标记点显示,可重新打开、标记解决或删除。
+
+**AI 拿到什么。** 每条标注包含评论、标签、页面 URL,以及一份元素指纹:当前最稳定的
+选择器(testid → id → name → aria-label → 结构化路径),外加 XPath、属性、祖先链和
+几何位置作为兜底。系统会自动截取该元素的裁剪截图,按需用
+`annotations {"op":"screenshot","id":…}` 取回——它会把 JPEG 写入
+`~/.open-webbridge/files/` 并返回路径。
+
+**闭环。** `annotations {"op":"resolve","ids":["a3"],"note":"…"}` 把标注标记为已处理
+并附上 AI 的回复——页面上的标记点会变绿并显示这条回复,你不用离开浏览器就能看到哪些
+问题被处理了。`annotations {"op":"clear"}` 清空全部标注。
+
+标注保存在浏览器配置档中,而不在 daemon 里:页面刷新、跳转、daemon 重启,甚至完全没有
+启动 daemon,标注都不会丢,也不会发送到任何地方。
+`annotate {"mode":"locate","id":"a3"}` 会在当前页面上重新查找被标注的元素,并报告哪个
+选择器仍然命中——页面改版后尤其有用。
+
 ### 文件与对话框
 
 | 动作 | 参数 | 返回 |
@@ -334,6 +368,24 @@ open-webbridge call save_as_pdf --session cap --args '{"paper_format":"a4","file
 open-webbridge call network --session net --args '{"cmd":"start"}'
 open-webbridge call navigate --session net --args '{"url":"https://example.com"}'
 open-webbridge call network --session net --args '{"cmd":"list","filter":"api"}'
+```
+
+**直接指着问题,而不是描述问题:**
+
+```bash
+# 1. 打开标注模式,然后在页面上点击元素、写下评论
+open-webbridge call annotate --args '{"mode":"start"}'
+
+# 2. AI 等待你的标注(不会阻塞它在同一会话上的其他调用)
+open-webbridge call annotations --args '{"op":"list","wait_ms":120000,"since":0}'
+
+# 3. 它挑一条,确认元素还在,并读取那张截图
+open-webbridge call annotate    --args '{"mode":"locate","id":"a1"}'
+open-webbridge call annotations --args '{"op":"screenshot","id":"a1"}'
+
+# 4. 它把结论写回标注本身,你会看到页面上的标记点变绿
+open-webbridge call annotations --args '{"op":"resolve","ids":["a1"],"note":"已修复"}'
+open-webbridge call annotations --args '{"op":"clear"}'
 ```
 
 **并行执行两个任务**,使用不同的会话名:

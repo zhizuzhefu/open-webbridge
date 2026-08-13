@@ -258,6 +258,17 @@ export function getActiveTab(name) {
   return s.activeTabId;
 }
 
+// sessionForTab reports which session currently owns a tab, or "" when the tab
+// was never opened/adopted by the bridge. Annotations are stamped with it so
+// the AI can tell which of its own sessions a human comment belongs to.
+export function sessionForTab(tabId) {
+  const id = Number(tabId);
+  for (const [name, s] of sessions.entries()) {
+    if (s.tabIds.has(id)) return name;
+  }
+  return "";
+}
+
 // bindTab attaches an already-open tab (found via find_tab) to a session.
 export function bindTab(name, tabId) {
   const s = getSession(name);
