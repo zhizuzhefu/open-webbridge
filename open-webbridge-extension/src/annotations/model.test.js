@@ -16,7 +16,6 @@ import {
 
 const baseInput = {
   comment: "  this button does nothing  ",
-  tags: ["bug", "bug", "  layout  ", ""],
   url: "https://example.com/app?tab=1#section",
   title: "App",
   top_frame: true,
@@ -43,7 +42,6 @@ test("makeRecord normalises the submission", () => {
   const r = record(3);
   assert.equal(r.id, "a3");
   assert.equal(r.comment, "this button does nothing");
-  assert.deepEqual(r.tags, ["bug", "layout"]);
   assert.equal(r.status, "open");
   assert.equal(r.url_key, "https://example.com/app?tab=1");
   assert.equal(r.element.tag, "button");
@@ -87,12 +85,11 @@ test("filterAnnotations defaults to open notes and honours since", () => {
   assert.deepEqual(filterAnnotations(items, { since: "1" }).map((i) => i.id), ["a3"]);
 });
 
-test("filterAnnotations matches url substrings, tags, ids and tabs", () => {
+test("filterAnnotations matches url substrings, ids and tabs", () => {
   const items = [record(1), record(2, { url: "https://other.test/page" })];
   assert.deepEqual(filterAnnotations(items, { url: "other.test" }).map((i) => i.id), ["a2"]);
   assert.deepEqual(filterAnnotations(items, { url: "OTHER.TEST" }).map((i) => i.id), ["a2"]);
   assert.deepEqual(filterAnnotations(items, { ids: ["a1"] }).map((i) => i.id), ["a1"]);
-  assert.deepEqual(filterAnnotations(items, { tag: "LAYOUT" }).map((i) => i.id), ["a1", "a2"]);
   assert.deepEqual(filterAnnotations(items, { tabId: 99 }), []);
 });
 

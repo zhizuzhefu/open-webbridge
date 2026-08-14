@@ -338,7 +338,7 @@ picture of it — instead of a paragraph of description.
 | Action | Arguments | Returns |
 |--------|-----------|---------|
 | `annotate` | `mode` (`start` / `stop` / `toggle` / `status` / `locate`); `tabId` (optional); `target` (`"active"` to use the tab you are viewing); `all` (bool, with `stop`); `id` (for `locate`) | `{ mode, tabId, url, annotations_on_page }` |
-| `annotations` | `op` (`list` / `get` / `clear` / `delete` / `resolve` / `reopen` / `note` / `screenshot` / `stats`); `status` (`open` / `resolved` / `all`); `url`, `tag`, `ids`, `id`, `since`, `limit`; `wait_ms`; `note`; `verbose` | `{ count, annotations, cursor }` |
+| `annotations` | `op` (`list` / `get` / `clear` / `delete` / `resolve` / `reopen` / `note` / `screenshot` / `stats`); `status` (`open` / `resolved` / `all`); `url`, `ids`, `id`, `since`, `limit`; `wait_ms`; `note`; `verbose` | `{ count, annotations, cursor }` |
 
 **Starting a session.** Press `Alt+Shift+A`, click **Start annotating** in the
 extension popup, or let the agent call `annotate {"mode":"start"}`. The page
@@ -346,7 +346,7 @@ enters annotation mode: hovering outlines elements, clicking one opens a comment
 box (⌘/Ctrl+Enter saves, `⌥↑` walks up to the parent element, Esc leaves). Notes
 already on the page appear as numbered pins you can reopen, resolve, or delete.
 
-**What the agent receives.** Each note carries the comment, any tags, the page
+**What the agent receives.** Each note carries the comment, the page
 URL, and an element fingerprint: the most stable selector available (test id →
 id → name → aria-label → structural path), plus XPath, attributes, ancestors and
 geometry as fallbacks. A cropped screenshot of the element is captured

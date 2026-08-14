@@ -17,8 +17,6 @@ export const MAX_WAIT_MS = 240000;
 
 const MAX_COMMENT = 4000;
 const MAX_NOTE = 4000;
-const MAX_TAGS = 6;
-const MAX_TAG_LEN = 24;
 
 // urlKey normalises a URL for "same page" comparisons: the fragment is dropped
 // (in-page anchors are not a different page) but the query is kept (it usually
@@ -44,17 +42,6 @@ export function sanitizeComment(text) {
 
 export function sanitizeNote(text) {
   return clip(text, MAX_NOTE).trim();
-}
-
-export function normalizeTags(tags) {
-  if (!Array.isArray(tags)) return [];
-  const out = [];
-  for (const t of tags) {
-    const s = clip(t, MAX_TAG_LEN).trim();
-    if (s && !out.includes(s)) out.push(s);
-    if (out.length >= MAX_TAGS) break;
-  }
-  return out;
 }
 
 function num(v) {
@@ -115,7 +102,6 @@ export function makeRecord({ seq, input, tabId, session, now }) {
     updated_at: at,
     status: "open",
     comment: sanitizeComment(src.comment),
-    tags: normalizeTags(src.tags),
     note: "",
     url,
     url_key: urlKey(url),
@@ -140,7 +126,6 @@ export function filterAnnotations(items, filter = {}) {
     ? new Set(filter.ids.map((v) => String(v).trim()))
     : null;
   const url = filter.url ? String(filter.url).toLowerCase() : "";
-  const tag = filter.tag ? String(filter.tag).toLowerCase() : "";
   const tabId = filter.tabId == null ? null : Number(filter.tabId);
   const sinceRaw = filter.since == null ? null : Number(filter.since);
   const since = Number.isFinite(sinceRaw) ? sinceRaw : null;
@@ -150,7 +135,6 @@ export function filterAnnotations(items, filter = {}) {
     if (ids && !ids.has(it.id)) return false;
     if (status !== "all" && it.status !== status) return false;
     if (url && !String(it.url || "").toLowerCase().includes(url)) return false;
-    if (tag && !(it.tags || []).some((t) => String(t).toLowerCase() === tag)) return false;
     if (tabId != null && Number(it.tabId) !== tabId) return false;
     if (since != null && !(Number(it.seq) > since)) return false;
     return true;
@@ -187,7 +171,6 @@ export function toWire(item, { verbose = false } = {}) {
     },
     has_screenshot: !!item.has_screenshot,
   };
-  if (item.tags && item.tags.length) out.tags = item.tags;
   if (item.note) out.note = item.note;
   if (item.status === "resolved") out.updated_at = item.updated_at;
   if (item.session) out.session = item.session;

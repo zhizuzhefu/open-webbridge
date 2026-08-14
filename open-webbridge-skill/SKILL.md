@@ -242,7 +242,7 @@ Each annotation looks like:
 
 ```json
 {"id":"a3","status":"open","comment":"this never submits",
- "url":"https://app.local/checkout","tags":["bug"],
+ "url":"https://app.local/checkout",
  "element":{"tag":"button","name":"Place order","selector":"[data-testid=\"submit\"]","unique":true},
  "has_screenshot":true}
 ```

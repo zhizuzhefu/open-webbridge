@@ -299,14 +299,14 @@ open-webbridge call <action> [--session NAME] [--args '<json>'] [json] \
 | 动作 | 参数 | 返回 |
 |------|------|------|
 | `annotate` | `mode`(`start` / `stop` / `toggle` / `status` / `locate`);`tabId`(可选);`target`(`"active"` 表示用你正在看的标签页);`all`(布尔,配合 `stop`);`id`(用于 `locate`) | `{ mode, tabId, url, annotations_on_page }` |
-| `annotations` | `op`(`list` / `get` / `clear` / `delete` / `resolve` / `reopen` / `note` / `screenshot` / `stats`);`status`(`open` / `resolved` / `all`);`url`、`tag`、`ids`、`id`、`since`、`limit`;`wait_ms`;`note`;`verbose` | `{ count, annotations, cursor }` |
+| `annotations` | `op`(`list` / `get` / `clear` / `delete` / `resolve` / `reopen` / `note` / `screenshot` / `stats`);`status`(`open` / `resolved` / `all`);`url`、`ids`、`id`、`since`、`limit`;`wait_ms`;`note`;`verbose` | `{ count, annotations, cursor }` |
 
 **开始标注。** 按 `Alt+Shift+A`、在扩展弹窗里点 **Start annotating**,或让 AI 调用
 `annotate {"mode":"start"}`。页面随即进入标注模式:悬停会高亮元素,点击某个元素弹出
 评论框(⌘/Ctrl+Enter 保存,`⌥↑` 向上选中父元素,Esc 退出)。已有的标注以带编号的
 标记点显示,可重新打开、标记解决或删除。
 
-**AI 拿到什么。** 每条标注包含评论、标签、页面 URL,以及一份元素指纹:当前最稳定的
+**AI 拿到什么。** 每条标注包含评论、页面 URL,以及一份元素指纹:当前最稳定的
 选择器(testid → id → name → aria-label → 结构化路径),外加 XPath、属性、祖先链和
 几何位置作为兜底。系统会自动截取该元素的裁剪截图,按需用
 `annotations {"op":"screenshot","id":…}` 取回——它会把 JPEG 写入

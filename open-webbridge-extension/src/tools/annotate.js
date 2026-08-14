@@ -164,7 +164,6 @@ function buildFilter(args, defaultStatus) {
     status: normalizeStatus(args.status, defaultStatus),
     url: args.url,
     tabId: args.tabId,
-    tag: args.tag,
     ids: idsOf(args),
     since: args.since,
     limit: args.limit,
@@ -222,7 +221,7 @@ async function clearOp(args) {
 }
 
 function hasTargeting(args) {
-  return !!(idsOf(args) || args.url || args.tag || args.tabId != null || args.since != null);
+  return !!(idsOf(args) || args.url || args.tabId != null || args.since != null);
 }
 
 // patchOp is how the AI closes the loop: mark the note handled and leave a
@@ -231,7 +230,7 @@ async function patchOp(args, status) {
   // Resolving is per-note by nature. An unfiltered call would silently close
   // every note the human left, so make "all of them" an explicit choice.
   if (!hasTargeting(args) && !args.all) {
-    throw new Error("pass ids (e.g. {\"ids\":[\"a3\"]}) or a url/tag filter — or all:true to apply to every annotation");
+    throw new Error("pass ids (e.g. {\"ids\":[\"a3\"]}) or a url filter — or all:true to apply to every annotation");
   }
   const filter = buildFilter(args, "all");
   const changes = {};

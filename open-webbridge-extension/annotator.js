@@ -47,7 +47,16 @@
   // ---------------------------------------------------------------- styles --
 
   const CSS = `
+    /* The shadow boundary already stops page selectors reaching in; all:initial
+       additionally stops inherited values from doing so, and the explicit
+       box-sizing keeps a page's global border-box rule irrelevant. */
+    /* Deliberately NOT !important: an important :host rule outranks the host's
+       own inline !important styles in Chrome, which would reset the overlay's
+       position/display/z-index back to initial and drop it into the page's
+       flow. Normal importance blocks page inheritance and still loses to the
+       inline styles that pin our layout. */
     :host { all: initial; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     .layer { position: absolute; inset: 0; pointer-events: none; }
     .box {
       position: absolute; border: 2px solid #2f6bff; border-radius: 3px;
@@ -90,12 +99,6 @@
       background: #fff; outline: none;
     }
     .card textarea:focus { border-color: #2f6bff; box-shadow: 0 0 0 3px rgba(47,107,255,.15); }
-    .chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 2px; }
-    .chip {
-      border: 1px solid #cbd5e1; background: #fff; color: #475569; border-radius: 999px;
-      padding: 2px 9px; font-size: 11px; cursor: pointer; user-select: none;
-    }
-    .chip[data-on="1"] { background: #2f6bff; border-color: #2f6bff; color: #fff; }
     .row { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
     .spacer { flex: 1; }
     button.btn {
@@ -127,17 +130,40 @@
     .hidden { display: none !important; }
   `;
 
-  const TAGS = ["bug", "layout", "copy", "behaviour", "request", "question"];
-
   // ------------------------------------------------------------------ host --
+
+  // Every property the overlay's own layout depends on, pinned as !important so
+  // that a page rule cannot move, hide, restyle or recolour it. Pages really do
+  // ship `* { ... !important }` (print sheets, reader modes, dark-mode hacks),
+  // and an inline declaration is the only thing an author !important rule
+  // cannot outrank.
+  const HOST_STYLE = {
+    position: "fixed", top: "0", left: "0", right: "auto", bottom: "auto",
+    width: "100%", height: "100%", "max-width": "none", "max-height": "none",
+    "min-width": "0", "min-height": "0",
+    margin: "0", padding: "0", border: "0", outline: "0", float: "none",
+    display: "block", visibility: "visible", opacity: "1",
+    "pointer-events": "none", "z-index": String(Z),
+    transform: "none", filter: "none", "clip-path": "none", "mix-blend-mode": "normal",
+    // Own stacking + containment context: nothing we paint can reflow the page.
+    isolation: "isolate", contain: "layout style",
+    // Inherited properties cross the shadow boundary, so they are pinned here
+    // rather than left to whatever the page set on <html>.
+    font: "normal normal 400 14px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif",
+    color: "#0f172a", direction: "ltr", "text-align": "left", "text-transform": "none",
+    "letter-spacing": "normal", "word-spacing": "normal", "white-space": "normal",
+    "color-scheme": "light",
+  };
 
   function ensureHost() {
     if (host && host.isConnected) return;
-    host = document.createElement("div");
+    // A hyphenated custom-element name, not a <div>: page rules written for
+    // `div`, `body > div`, `.wrapper > *` and friends simply do not match it.
+    host = document.createElement("owb-annotator-root");
     host.setAttribute(HOST_ATTR, "");
-    host.style.cssText =
-      "position:fixed;top:0;left:0;width:100%;height:100%;margin:0;padding:0;border:0;" +
-      "pointer-events:none;z-index:" + Z + ";color-scheme:light;";
+    for (const [prop, value] of Object.entries(HOST_STYLE)) {
+      host.style.setProperty(prop, value, "important");
+    }
     root = host.attachShadow({ mode: "open" });
     const style = document.createElement("style");
     style.textContent = CSS;
@@ -161,7 +187,10 @@
       root.appendChild(bar.el);
     }
     ui = { highlight, label, pins, panelHost, bar, card: null };
-    (document.body || document.documentElement).appendChild(host);
+    // Mounted on <html>, not <body>: adding a node to body would change what
+    // the page's own :last-child / :nth-child / body > * rules select, and make
+    // us a flex or grid item of a body that lays its children out.
+    document.documentElement.appendChild(host);
   }
 
   function el(tag, cls, text) {
@@ -678,30 +707,13 @@
     const target = el("div", "target", describeShort(node));
     const ta = el("textarea");
     ta.placeholder = "What is wrong here, or what should change?";
-    const chips = el("div", "chips");
-    const chosen = new Set();
-    for (const t of TAGS) {
-      const chip = el("button", "chip", t);
-      chip.setAttribute("type", "button");
-      chip.addEventListener("click", (e) => {
-        stopAll(e);
-        if (chosen.has(t)) {
-          chosen.delete(t);
-          chip.dataset.on = "0";
-        } else {
-          chosen.add(t);
-          chip.dataset.on = "1";
-        }
-      });
-      chips.appendChild(chip);
-    }
     const row = el("div", "row");
     const parent = el("button", "btn", "Parent ⌥↑");
     const spacer = el("div", "spacer");
     const cancel = el("button", "btn", "Cancel");
     const save = el("button", "btn primary", "Save ⌘↵");
     row.append(parent, spacer, cancel, save);
-    card.append(target, ta, chips, row);
+    card.append(target, ta, row);
     mountCard(card, node);
     ta.focus();
 
@@ -722,13 +734,13 @@
     });
     save.addEventListener("click", (e) => {
       stopAll(e);
-      submit(ta.value, [...chosen], node);
+      submit(ta.value, node);
     });
     ta.addEventListener("keydown", (e) => {
       e.stopPropagation();
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        submit(ta.value, [...chosen], node);
+        submit(ta.value, node);
       } else if (e.key === "Escape") {
         e.preventDefault();
         closeCard();
@@ -741,16 +753,6 @@
     const target = el("div", "target", ann.element ? `${ann.element.tag} — ${ann.element.selector}` : ann.id);
     const body = el("div", "body", ann.comment || "");
     card.append(target, body);
-    if (ann.tags && ann.tags.length) {
-      const chips = el("div", "chips");
-      for (const t of ann.tags) {
-        const chip = el("span", "chip");
-        chip.dataset.on = "1";
-        chip.textContent = t;
-        chips.appendChild(chip);
-      }
-      card.appendChild(chips);
-    }
     if (ann.note) card.appendChild(el("div", "note", "AI: " + ann.note));
     card.appendChild(
       el("div", "meta", `${ann.id} · ${ann.status}${node ? "" : " · element not found on this page"}`)
@@ -786,7 +788,7 @@
     });
   }
 
-  async function submit(text, tags, node) {
+  async function submit(text, node) {
     const comment = String(text || "").trim();
     if (!comment) {
       const ta = ui.card && ui.card.el.querySelector("textarea");
@@ -802,7 +804,6 @@
       type: "OWB_ANN_ADD",
       input: {
         comment,
-        tags,
         url: location.href,
         title: document.title,
         frame_url: location.href,
