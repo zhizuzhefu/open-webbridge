@@ -81,7 +81,7 @@
     .card .target {
       font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: #475569;
       background: #f1f5f9; border-radius: 5px; padding: 5px 7px; margin-bottom: 8px;
-      word-break: break-all; max-height: 54px; overflow: hidden;
+      overflow-wrap: anywhere; max-height: 54px; overflow: hidden;
     }
     .card textarea {
       width: 100%; min-height: 74px; resize: vertical; box-sizing: border-box;
@@ -535,6 +535,13 @@
     h.style.width = r.width + "px";
     h.style.height = r.height + "px";
     const lab = ui.label;
+    // The label names whatever is under the cursor. Once a card is open the
+    // element is already named in the card's header, and the label only ends up
+    // underneath it — so drop it rather than draw it behind.
+    if (composerOpen || (ui.card && ui.card.el)) {
+      lab.classList.add("hidden");
+      return;
+    }
     lab.classList.remove("hidden");
     lab.textContent = describeShort(node);
     const above = r.top > 24;
