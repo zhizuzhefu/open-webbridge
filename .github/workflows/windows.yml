@@ -1,0 +1,55 @@
+name: windows
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  daemon-windows:
+    strategy:
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
+          - runner: windows-11-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          architecture: ${{ matrix.arch }}
+          cache: false
+      - run: go test ./...
+      - name: Exercise the daemon lifecycle
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $env:CGO_ENABLED = '0'
+          $env:USERPROFILE = Join-Path $env:RUNNER_TEMP 'Open WebBridge smoke'
+          $exe = Join-Path $env:RUNNER_TEMP 'open-webbridge.exe'
+          go build -trimpath -o $exe ./open-webbridge-daemon
+          & $exe version
+
+          try {
+            & $exe start | Out-Null
+            $status = & $exe status | ConvertFrom-Json
+            if (-not $status.running -or -not $status.version) { throw 'The daemon did not report a live HTTP status' }
+            if ((& $exe logs -n 20 | Out-String) -notmatch 'starting \(pid') { throw 'Daemon startup was missing from the log' }
+            if ((& $exe start | Out-String) -notmatch 'already running') { throw 'Start did not recognize the existing daemon' }
+
+            $pidFile = Join-Path $env:USERPROFILE '.open-webbridge\daemon.pid'
+            $firstPid = Get-Content -LiteralPath $pidFile
+            & $exe restart | Out-Null
+            $status = & $exe status | ConvertFrom-Json
+            if (-not $status.running -or -not $status.version) { throw 'The daemon did not come back after restart' }
+            if ((Get-Content -LiteralPath $pidFile) -eq $firstPid) { throw 'Restart left the original daemon running' }
+          } finally {
+            & $exe stop
+          }
+
+          $status = & $exe status | ConvertFrom-Json
+          if ($status.running) { throw 'The daemon is still running after stop' }

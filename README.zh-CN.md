@@ -79,7 +79,7 @@ Open WebBridge 由三个部分组成,只需安装一次:
 
 ## 4. 系统要求
 
-- **操作系统:** macOS 或 Linux。
+- **操作系统:** macOS、Linux 或 Windows（x64 和 ARM64）。
 - **浏览器:** 基于 Chromium 的浏览器(Google Chrome 或 Microsoft Edge)。
 - **从源码构建(可选):** 服务需要 Go 1.24 及以上;扩展需要 Node.js 18 及以上。
 
@@ -90,6 +90,8 @@ Open WebBridge 由三个部分组成,只需安装一次:
 安装分三步:安装后台服务、添加浏览器扩展、将二者连接。
 
 ### 5.1 安装后台服务
+
+#### macOS 和 Linux
 
 运行安装脚本,它会下载适配你平台的预编译二进制并启动服务:
 
@@ -105,6 +107,23 @@ curl -fsSL https://raw.githubusercontent.com/zhizuzhefu/open-webbridge/main/scri
 ```bash
 export PATH="$PATH:$HOME/.open-webbridge/bin"
 ```
+
+#### Windows
+
+从 [GitHub Releases](https://github.com/zhizuzhefu/open-webbridge/releases/latest) 下载对应架构的文件。
+x64 选择 `open-webbridge-windows-amd64.exe`，ARM64 选择 `open-webbridge-windows-arm64.exe`。
+在 PowerShell 中将下载的文件复制到程序目录并启动。按实际下载位置和架构调整文件名。
+
+```powershell
+$bin = Join-Path $HOME '.open-webbridge\bin'
+New-Item -ItemType Directory -Path $bin -Force | Out-Null
+Copy-Item "$HOME\Downloads\open-webbridge-windows-amd64.exe" (Join-Path $bin 'open-webbridge.exe')
+$env:Path += ";$bin"
+open-webbridge start
+```
+
+如需在新开的终端中直接运行 `open-webbridge`，在 Windows 设置中将
+`%USERPROFILE%\.open-webbridge\bin` 加入用户 `Path`。
 
 ### 5.2 安装浏览器扩展
 
@@ -438,18 +457,22 @@ open-webbridge call snapshot --session work \
 | `host` | `127.0.0.1` | 指令端点的网络绑定。 |
 | `port` | `9234` | TCP 端口。 |
 | `token` | 自动生成 | 每条指令所需的访问令牌。 |
-| `auto_update` | `false` | 为 `true` 时,服务在每日检查中自动安装新版本。 |
+| `auto_update` | 新安装默认为 `true` | macOS 和 Linux 自动安装新版本。Windows 在日志中提示有可用更新。 |
 
 请在服务停止时编辑该文件,然后 `open-webbridge start`。
 
 ## 12. 更新
+
+macOS 和 Linux：
 
 ```bash
 open-webbridge update --check     # 检查是否有更新
 open-webbridge update             # 安装最新版本并重启
 ```
 
-服务也会每日检查更新并在日志中记录是否可用;将 `auto_update` 设为 `true` 可自动应用更新。
+服务每天检查更新。Windows 可运行 `open-webbridge update --check` 主动检查。
+更新时，下载对应架构的新 `.exe`，运行 `open-webbridge stop`，替换
+`%USERPROFILE%\.open-webbridge\bin\open-webbridge.exe`，再运行 `open-webbridge start`。
 浏览器扩展通过 Chrome 应用商店更新。
 
 守护进程与扩展**各自独立发版**——分别走 GitHub Releases 和 Chrome 应用商店,版本号
@@ -475,7 +498,7 @@ open-webbridge update             # 安装最新版本并重启
 
 | 现象 | 解决 |
 |------|------|
-| `command not found` | 未安装,或其目录不在 `PATH` 中。重新运行安装脚本,或用完整路径调用:`~/.open-webbridge/bin/open-webbridge`。 |
+| 找不到命令 | 按对应系统的[安装说明](#51-安装后台服务)检查程序的完整路径和 `PATH`。 |
 | `status` 显示 `"running": false` | 启动它:`open-webbridge start`。 |
 | `status` 显示 `"extension_connected": false` | 打开浏览器,确认扩展已安装并已连接(见 [5.3](#53-连接扩展))。 |
 | 调用返回 `no browser extension connected` | 同上——连接扩展。 |
@@ -490,7 +513,7 @@ open-webbridge update             # 安装最新版本并重启
 
 1. 停止服务:`open-webbridge stop`。
 2. 在 `chrome://extensions` 中移除扩展。
-3. 删除数据目录:`rm -rf ~/.open-webbridge`。
+3. 删除用户主目录下的 `.open-webbridge` 目录。
 4. 如曾安装 Agent Skill,删除其目录(例如 `~/.claude/skills/open-webbridge`)。
 
 ## 16. 许可证

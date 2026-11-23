@@ -5,8 +5,9 @@ asks to install, start, stop, restart, or troubleshoot Open WebBridge.
 
 ## Path convention
 
-The binary lives at `~/.open-webbridge/bin/open-webbridge`. Config, pidfile,
-logs, and saved files all live under `~/.open-webbridge/`:
+The binary lives at `~/.open-webbridge/bin/open-webbridge` on macOS and Linux,
+or `%USERPROFILE%\.open-webbridge\bin\open-webbridge.exe` on Windows. Config,
+pidfile, logs, and saved files live under `.open-webbridge` in your home directory:
 
 ```
 ~/.open-webbridge/
@@ -23,7 +24,7 @@ Run: `open-webbridge status`
 
 | Observed | Action |
 |---|---|
-| `command not found` | Not installed. Install the release binary with the official installer: `curl -fsSL https://raw.githubusercontent.com/zhizuzhefu/open-webbridge/main/scripts/install.sh | bash`. |
+| Command unavailable | Try the full binary path above. If it is missing, follow the [installation instructions](https://github.com/zhizuzhefu/open-webbridge#51-install-the-background-service) for your OS. |
 | `{"running":false}` | Daemon not running. Run: `open-webbridge start` |
 | `running:true`, `extension_connected:false` | Extension not connected. See **Connecting the extension** below. |
 | `running:true`, `extension_connected:true` | Healthy. Return to SKILL.md and call tools. |

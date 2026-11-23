@@ -35,7 +35,8 @@ done
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 case "$OS" in
   darwin|linux) ;;
-  *) echo "unsupported OS: $OS (prebuilt binaries are darwin/linux only; build from source with scripts/dev-install.sh)" >&2; exit 1 ;;
+  mingw*|msys*|cygwin*) echo "For Windows, download the x64 or ARM64 .exe from https://github.com/$REPO/releases/latest and follow the Windows instructions in the README." >&2; exit 1 ;;
+  *) echo "unsupported OS for this installer: $OS" >&2; exit 1 ;;
 esac
 ARCH="$(uname -m)"
 case "$ARCH" in

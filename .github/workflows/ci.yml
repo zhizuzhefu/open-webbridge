@@ -18,6 +18,9 @@ jobs:
       - run: go build ./...
       - run: go test ./... 2>/dev/null || true
 
+  daemon-windows:
+    uses: ./.github/workflows/windows.yml
+
   extension:
     runs-on: ubuntu-latest
     steps:

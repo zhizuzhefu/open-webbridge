@@ -61,6 +61,11 @@ func UpdateAvailable(ctx context.Context) (latest string, available bool, err er
 	return latest, config.CompareVersions(latest, config.Version) > 0, nil
 }
 
+// ReleaseURL links to the assets and notes for a published version.
+func ReleaseURL(version string) string {
+	return fmt.Sprintf("https://github.com/%s/releases/tag/v%s", config.Repo, version)
+}
+
 func downloadURL(version, asset string) string {
 	return fmt.Sprintf("https://github.com/%s/releases/download/v%s/%s", config.Repo, version, asset)
 }

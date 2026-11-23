@@ -9,7 +9,9 @@ import (
 // TestAutoUpdateDefaultsOnFreshInstall verifies a first run (no config.json)
 // creates a config with auto-update enabled.
 func TestAutoUpdateDefaultsOnFreshInstall(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	c, err := Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)
@@ -24,6 +26,7 @@ func TestAutoUpdateDefaultsOnFreshInstall(t *testing.T) {
 func TestExistingAutoUpdateFalseIsPreserved(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	if err := EnsureDirs(); err != nil {
 		t.Fatalf("EnsureDirs: %v", err)
 	}

@@ -1,6 +1,6 @@
 name: release
 
-# Build daemon binaries for macOS/Linux (amd64/arm64) and publish them, plus
+# Build daemon binaries for macOS, Linux, and Windows (amd64/arm64), plus
 # the extension and skill bundles, as a GitHub Release on every v* tag.
 on:
   push:
@@ -11,9 +11,15 @@ permissions:
   contents: write
 
 jobs:
+  daemon-windows:
+    uses: ./.github/workflows/windows.yml
+    permissions:
+      contents: read
+
   release:
+    needs: daemon-windows
     # macOS runner so we can ad-hoc codesign the darwin binaries (Apple Silicon
-    # refuses to run unsigned binaries). Go cross-compiles the linux targets
+    # refuses to run unsigned binaries). Go cross-compiles Linux and Windows
     # fine from macOS. Ad-hoc signing needs no Apple Developer account.
     runs-on: macos-latest
     steps:
@@ -33,14 +39,17 @@ jobs:
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Build daemon binaries
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
         run: |
           set -euo pipefail
           mkdir -p dist
           PKG=github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon
-          LDFLAGS="-s -w -X ${PKG}/internal/config.Version=${{ steps.ver.outputs.version }}"
-          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
+          LDFLAGS="-s -w -X ${PKG}/internal/config.Version=${VERSION}"
+          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
             os="${target%/*}"; arch="${target#*/}"
             out="dist/open-webbridge-${os}-${arch}"
+            if [[ "$os" == windows ]]; then out+=".exe"; fi
             echo "==> $out"
             CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
               go build -trimpath -ldflags "$LDFLAGS" -o "$out" ./open-webbridge-daemon
@@ -72,7 +81,10 @@ jobs:
             dist/open-webbridge-darwin-arm64
             dist/open-webbridge-linux-amd64
             dist/open-webbridge-linux-arm64
+            dist/open-webbridge-windows-amd64.exe
+            dist/open-webbridge-windows-arm64.exe
             dist/open-webbridge-extension.zip
             dist/open-webbridge-skill.tar.gz
             dist/SHA256SUMS.txt
           generate_release_notes: true
+          fail_on_unmatched_files: true

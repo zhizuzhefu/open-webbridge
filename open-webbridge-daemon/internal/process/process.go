@@ -18,7 +18,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/zhizuzhefu/open-webbridge/open-webbridge-daemon/internal/config"
@@ -34,10 +33,8 @@ func IsRunning() (int, bool) {
 	if err != nil || pid <= 0 {
 		return 0, false
 	}
-	if proc, err := os.FindProcess(pid); err == nil {
-		if err := proc.Signal(syscall.Signal(0)); err == nil {
-			return pid, true
-		}
+	if processRunning(pid) {
+		return pid, true
 	}
 	return 0, false
 }
@@ -65,16 +62,16 @@ func Start(cfg *config.Config) error {
 	cmd := exec.Command(exe, "__serve")
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} // detach into new session
+	cmd.SysProcAttr = detachedProcess()
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 	pid := cmd.Process.Pid
+	defer cmd.Process.Release()
 	if err := os.WriteFile(config.PidPath(), []byte(strconv.Itoa(pid)), 0o644); err != nil {
+		_ = cmd.Process.Kill()
 		return err
 	}
-	// Let the child outlive this process.
-	_ = cmd.Process.Release()
 
 	// Wait for the HTTP server to answer before reporting success.
 	if err := waitHealthy(cfg, 5*time.Second); err != nil {
@@ -93,22 +90,8 @@ func Stop() error {
 		_ = os.Remove(config.PidPath())
 		return nil
 	}
-	proc, err := os.FindProcess(pid)
-	if err != nil {
+	if err := stopProcess(pid); err != nil {
 		return err
-	}
-	if err := proc.Signal(syscall.SIGTERM); err != nil {
-		return err
-	}
-	// Give it a moment, then force kill.
-	for i := 0; i < 20; i++ {
-		if _, ok := IsRunning(); !ok {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	if _, ok := IsRunning(); ok {
-		_ = proc.Signal(syscall.SIGKILL)
 	}
 	_ = os.Remove(config.PidPath())
 	fmt.Println("stopped")
@@ -132,14 +115,7 @@ func PrintStatus(cfg *config.Config) error {
 
 // Logs prints the tail of the daemon log.
 func Logs(lines int, follow bool) error {
-	path := config.LogPath()
-	if follow {
-		c := exec.Command("tail", "-n", strconv.Itoa(lines), "-f", path)
-		c.Stdout = os.Stdout
-		c.Stderr = os.Stderr
-		return c.Run()
-	}
-	c := exec.Command("tail", "-n", strconv.Itoa(lines), path)
+	c := logCommand(config.LogPath(), lines, follow)
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()

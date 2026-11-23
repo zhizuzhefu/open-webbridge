@@ -96,7 +96,7 @@ computer.
 
 ## 4. System requirements
 
-- **Operating system:** macOS or Linux.
+- **Operating system:** macOS, Linux, or Windows (x64 and ARM64).
 - **Browser:** a Chromium-based browser (Google Chrome or Microsoft Edge).
 - **To build from source (optional):** Go 1.24 or newer for the service;
   Node.js 18 or newer for the extension.
@@ -110,6 +110,8 @@ Installation has three steps: install the background service, add the browser
 extension, and connect them.
 
 ### 5.1 Install the background service
+
+#### macOS and Linux
 
 Run the installer, which downloads the prebuilt binary for your platform and
 starts the service:
@@ -128,6 +130,24 @@ your `PATH` for convenience:
 ```bash
 export PATH="$PATH:$HOME/.open-webbridge/bin"
 ```
+
+#### Windows
+
+Download `open-webbridge-windows-amd64.exe` for x64 or
+`open-webbridge-windows-arm64.exe` for ARM64 from [GitHub Releases](https://github.com/zhizuzhefu/open-webbridge/releases/latest).
+In PowerShell, copy the download into the daemon's bin directory and start it.
+Adjust the source filename or directory to match your download.
+
+```powershell
+$bin = Join-Path $HOME '.open-webbridge\bin'
+New-Item -ItemType Directory -Path $bin -Force | Out-Null
+Copy-Item "$HOME\Downloads\open-webbridge-windows-amd64.exe" (Join-Path $bin 'open-webbridge.exe')
+$env:Path += ";$bin"
+open-webbridge start
+```
+
+Add `%USERPROFILE%\.open-webbridge\bin` to your user `Path` in Windows settings
+to use `open-webbridge` in future shells.
 
 ### 5.2 Install the browser extension
 
@@ -485,20 +505,24 @@ All data is stored under `~/.open-webbridge/`:
 | `host` | `127.0.0.1` | Network binding for the instruction endpoint. |
 | `port` | `9234` | TCP port. |
 | `token` | generated | Access token required for every instruction. |
-| `auto_update` | `false` | When `true`, the service installs newer releases automatically during its daily check. |
+| `auto_update` | `true` for new installations | Automatically installs newer releases on macOS and Linux. Windows reports availability in the log. |
 
 Edit the file while the service is stopped, then `open-webbridge start`.
 
 ## 12. Updating
+
+On macOS and Linux:
 
 ```bash
 open-webbridge update --check     # report whether a newer version is available
 open-webbridge update             # install the latest version and restart
 ```
 
-The service also checks for updates once a day and notes availability in its log;
-set `auto_update` to `true` to apply updates automatically. The browser extension
-updates through the Chrome Web Store.
+The service checks for updates once a day. On Windows, run
+`open-webbridge update --check` to check on demand. To update, download the new
+`.exe` for your architecture, run `open-webbridge stop`, replace
+`%USERPROFILE%\.open-webbridge\bin\open-webbridge.exe`, then run
+`open-webbridge start`. The browser extension updates through the Chrome Web Store.
 
 The daemon and the extension are versioned **independently** — they ship on
 separate channels (GitHub Releases and the Chrome Web Store) and their release
@@ -530,7 +554,7 @@ See the full [Privacy Policy](PRIVACY.md).
 
 | Symptom | Resolution |
 |---------|------------|
-| `command not found` | The service is not installed, or its directory is not on your `PATH`. Re-run the installer or call it by full path: `~/.open-webbridge/bin/open-webbridge`. |
+| Command unavailable | Check the full binary path and your `PATH` using the [installation instructions](#51-install-the-background-service) for your OS. |
 | `status` shows `"running": false` | Start it: `open-webbridge start`. |
 | `status` shows `"extension_connected": false` | Open your browser and ensure the extension is installed and connected (see [5.3](#53-connect-the-extension)). |
 | A call returns `no browser extension connected` | Same as above — connect the extension. |
@@ -545,7 +569,7 @@ See the full [Privacy Policy](PRIVACY.md).
 
 1. Stop the service: `open-webbridge stop`.
 2. Remove the extension from `chrome://extensions`.
-3. Delete the data directory: `rm -rf ~/.open-webbridge`.
+3. Delete the `.open-webbridge` directory in your home directory.
 4. Remove the agent skill directory if it was installed (for example,
    `~/.claude/skills/open-webbridge`).
 

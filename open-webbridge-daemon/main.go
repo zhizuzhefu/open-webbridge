@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -59,7 +60,7 @@ func main() {
 	case "stop":
 		must(process.Stop())
 	case "restart":
-		_ = process.Stop()
+		must(process.Stop())
 		must(process.Start(cfg))
 	case "bind":
 		runBind(cfg, rest)
@@ -161,7 +162,7 @@ func runBind(cfg *config.Config, args []string) {
 
 	if _, running := process.IsRunning(); running {
 		fmt.Println("restarting daemon to apply…")
-		_ = process.Stop()
+		must(process.Stop())
 		must(process.Start(cfg))
 	} else {
 		fmt.Println("run `open-webbridge start` to launch with the new bind.")
@@ -193,6 +194,9 @@ func runUpdate(cfg *config.Config, args []string) {
 		fmt.Printf("already up to date (v%s)\n", config.Version)
 		return
 	}
+	if runtime.GOOS == "windows" {
+		fatal(fmt.Errorf("to install v%s on Windows, stop the daemon and replace the executable from %s", latest, updater.ReleaseURL(latest)))
+	}
 	fmt.Printf("updating to v%s …\n", latest)
 	path, err := updater.InstallBinary(ctx, latest)
 	if err != nil {
@@ -216,6 +220,10 @@ func autoUpdateLoop(cfg *config.Config) {
 		defer cancel()
 		latest, available, err := updater.UpdateAvailable(ctx)
 		if err != nil || !available {
+			return
+		}
+		if runtime.GOOS == "windows" {
+			log.Printf("[update] v%s available (current v%s) — stop the daemon and replace the executable from %s", latest, config.Version, updater.ReleaseURL(latest))
 			return
 		}
 		if !cfg.AutoUpdate {

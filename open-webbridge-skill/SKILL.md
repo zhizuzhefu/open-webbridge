@@ -10,8 +10,9 @@ Drive the user's real browser (with their logins) through a local, telemetry-fre
 daemon. You call tools with the `open-webbridge` CLI — it handles the auth token,
 the HTTP transport, and writing screenshots/PDFs to disk for you.
 
-Binary location: `~/.open-webbridge/bin/open-webbridge` (assume it is on PATH; if
-"command not found", call it by that absolute path).
+Use `open-webbridge` from PATH or call it by its full path. On macOS and Linux,
+the binary is `~/.open-webbridge/bin/open-webbridge`. On Windows, use
+`%USERPROFILE%\.open-webbridge\bin\open-webbridge.exe`.
 
 ## Health check (always do this first)
 
