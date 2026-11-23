@@ -60,51 +60,75 @@ in `manifest.json`, run `npm run package`, and upload the new zip.
 
 ## 6. Listing copy
 
-The dashboard blocks publishing until every field below is filled. They are
-reproduced verbatim so a re-submission never has to re-derive them, and so the
-justifications keep matching what the code actually does — if a permission's use
-changes, change it here in the same commit.
+Use the copy below when updating the listing. Keep the permission explanations
+in sync with the extension's behavior.
 
-The dashboard cannot be automated: Chrome refuses to let any extension script or
-attach a debugger to the Web Store domain ("The extensions gallery cannot be
-scripted"), so these are filled in by hand.
+Use the Chrome Web Store Developer Dashboard for listing fields. Chrome
+restricts extension scripts and debugger access on the Web Store domain.
 
 ### Product details tab
 
 - **Category:** Developer Tools
-- **Language:** English (all listing text below is English)
+- **Default language:** English. Add Simplified Chinese as a localized description.
 - **Icon:** `open-webbridge-extension/icon/128.png` (128×128)
 - **Screenshots:** at least one 1280×800 or 640×400 image
 - **Privacy policy URL:**
   `https://github.com/zhizuzhefu/open-webbridge/blob/main/PRIVACY.md`
 
-**Detailed description:**
+**Official website:** https://apps.zhizuzhefu.com/open-webbridge/
 
-> Open WebBridge lets your own AI assistant operate the browser you already use,
-> with the sessions you are already signed in to.
+**Support URL:** https://github.com/zhizuzhefu/open-webbridge/issues
+
+Check the public listing after review. Use the Dashboard's impressions, daily
+installs, uninstalls, and weekly users to compare the 28 days before and after
+the listing update. Use Search Console to check indexing, queries, and clicks
+for both landing page URLs.
+
+**Short description (from the manifest):**
+
+> Free, open-source Chrome automation for AI agents. Use your signed-in browser, with a local companion app.
+
+**Detailed description (English):**
+
+> Open WebBridge is a free, open-source Chrome extension for AI browser automation. It lets an AI agent that can run shell commands use the desktop Chrome profile you already use, including sites where you are signed in.
 >
-> It is a bridge, not an agent: a small open-source program runs on your computer
-> and this extension carries out the page instructions it sends — open a page,
-> read its structure, click, type, fill and submit forms, capture a screenshot or
-> PDF, record network activity, manage downloads. Because the work happens in
-> your real browser profile, the assistant reaches internal dashboards, admin
-> consoles and web mail without new logins or API keys.
+> WHAT YOU CAN DO
 >
-> Pages are read through the accessibility tree, so the assistant targets
-> elements by meaning rather than by brittle CSS selectors, and input is
-> dispatched as real mouse and keyboard events through the DevTools Protocol.
-> Independent tasks are isolated in separate tab groups so several can run at
-> once without interfering.
+> • Read pages through an accessibility snapshot, click controls, fill forms, and navigate across tabs.
+> • Capture screenshots, export pages as PDF, and manage downloads.
+> • Attach comments to elements on a live page so your agent can find the exact control you want it to review.
 >
-> You can also annotate a page by hand: turn annotation mode on, click any
-> element, and attach a comment. Your assistant reads those comments back with a
-> selector it can act on and a picture of the element — so "this button is
-> broken" points at something exact instead of being described in prose.
+> HOW TO GET STARTED
 >
-> Nothing leaves your machine. The extension connects only to the companion
-> program on 127.0.0.1; there is no analytics, no telemetry, and no remote
-> endpoint anywhere in the code. The source is public and auditable at
-> https://github.com/zhizuzhefu/open-webbridge (AGPL-3.0).
+> 1. Add Open WebBridge to desktop Chrome.
+> 2. Install the free companion program on the same computer. macOS and Linux have an installer. Windows has x64 and ARM64 executables.
+> 3. Run open-webbridge url, paste the address into the extension, and click Connect. Run open-webbridge status to verify the connection.
+>
+> Installation and downloads: https://apps.zhizuzhefu.com/open-webbridge/
+>
+> LOCAL CONNECTION AND OPEN SOURCE
+>
+> The extension connects to the companion program on your computer over loopback and has no telemetry. Chrome debugger permission lets it read page structure and perform the browser actions you request. Your selected AI agent controls how it processes tool results.
+>
+> Source code and AGPL-3.0 license: https://github.com/zhizuzhefu/open-webbridge
+
+**Detailed description (Simplified Chinese):**
+
+> Open WebBridge 是免费开源的 Chrome AI 浏览器自动化扩展。它让可以运行命令的 AI 助手使用你正在用的桌面版 Chrome，包括你已登录的网站。
+>
+> 可以读取网页、点击、填写表单、截图、导出 PDF 和管理下载。你还可以在真实网页的元素上添加评论，让助手找到你希望它检查的控件。
+>
+> 安装方法
+>
+> 1. 在桌面版 Chrome 中添加 Open WebBridge 扩展。
+> 2. 在同一台电脑上安装配套程序。macOS 和 Linux 可运行安装脚本，Windows 可下载 x64 或 ARM64 可执行文件。
+> 3. 运行 open-webbridge url，把地址粘贴到扩展并点击 Connect。用 open-webbridge status 确认连接。
+>
+> 中文安装说明和下载：https://apps.zhizuzhefu.com/open-webbridge/zh-cn/
+>
+> 扩展通过本机回环地址连接配套程序，无遥测。Chrome 调试权限用于读取页面结构和执行你请求的操作。工具结果由你选用的 AI 助手处理。
+>
+> 源代码和 AGPL-3.0 许可：https://github.com/zhizuzhefu/open-webbridge
 
 ### Privacy practices tab
 

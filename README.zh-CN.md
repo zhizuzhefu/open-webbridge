@@ -1,11 +1,14 @@
-# Open WebBridge — 用户手册
+# Open WebBridge · 免费开源的 Chrome AI 浏览器自动化扩展
 
 [English](README.md) | **中文**
 
-Open WebBridge 是一款本地工具,让 AI 助手操作你**真实的 Chrome 浏览器**。它可以
-打开网页、读取页面内容、点击、输入、填写并提交表单、下载文件、截图与导出 PDF,
-并完成多步骤任务——全部在你**现有的浏览器配置档**中进行,使用你已经登录的会话与
-凭据。软件完全运行在你的电脑上,不向任何外部服务发送数据。
+Open WebBridge 让可以运行命令的 AI 助手操作你已经在用的桌面 Chrome 浏览器。
+它可以使用现有登录会话读取网页、点击、填写表单、下载文件、截图或导出 PDF。
+Chrome 扩展和配套程序均免费开源，在 macOS、Linux 和 Windows 上本地运行，无遥测。
+
+**[从 Chrome 应用商店安装](https://chromewebstore.google.com/detail/open-webbridge/hioldppfhhbhgnnopkemdndhbmpfdgdj)** ·
+**[下载配套程序](https://github.com/zhizuzhefu/open-webbridge/releases/latest)** ·
+**[中文安装指南](https://apps.zhizuzhefu.com/open-webbridge/zh-cn/)**
 
 本手册涵盖安装、配置、命令行接口、完整的动作列表、常见工作流、远程操作与故障排查。
 
@@ -43,8 +46,7 @@ Open WebBridge 由三个部分组成,只需安装一次:
 你——或你的 AI 助手——通过一条命令 `open-webbridge call <action>` 下达指令。
 每条指令都在你自己的浏览器中执行,因此 AI 看到的页面和你看到的一样,且已登录。
 
-由于浏览器与服务运行在同一台机器上,且服务不主动对外联网,你的浏览行为与数据
-不会离开你的电脑。
+扩展通过本地回环地址把你请求的页面数据交给配套程序。你选择的 AI 助手决定如何处理工具返回的数据。
 
 ## 2. 核心能力
 
@@ -129,7 +131,7 @@ open-webbridge start
 
 任选其一:
 
-- **Chrome 应用商店**(推荐;自动更新):从商店页面安装 Open WebBridge 扩展。
+- **Chrome 应用商店**（推荐，自动更新）：[安装 Open WebBridge](https://chromewebstore.google.com/detail/open-webbridge/hioldppfhhbhgnnopkemdndhbmpfdgdj)。
 - **手动安装:** 构建扩展并以「加载已解压」方式载入。
 
   ```bash
@@ -482,7 +484,7 @@ open-webbridge update             # 安装最新版本并重启
 
 ## 13. 安全与隐私
 
-- 服务完全运行在你的机器上,默认不发起任何对外连接。
+- 扩展连接本地配套程序，配套程序会向 GitHub 检查软件更新。
 - 代码中不含任何形式的分析或使用情况上报。
 - 每条指令都需要配置文件中的访问令牌,而该文件仅你的账户可读。这可防止本机其它程序
   或网页控制你的浏览器。

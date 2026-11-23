@@ -1,13 +1,16 @@
-# Open WebBridge — User Manual
+# Open WebBridge · Free, open-source AI browser automation for Chrome
 
 **English** | [中文](README.zh-CN.md)
 
-Open WebBridge is a local tool that lets an AI agent operate your real Chrome
-browser. The agent can open pages, read their contents, click, type, fill and
-submit forms, download files, capture screenshots and PDFs, and complete
-multi-step tasks — within your existing browser profile, using the sessions and
-logins you already have. The software runs entirely on your computer and sends
-no data to any external service.
+Open WebBridge connects a local AI agent to your existing desktop Chrome browser.
+An agent that can run shell commands can read pages, click, fill forms, download
+files, and capture screenshots or PDFs using your signed-in browser sessions.
+The Chrome extension and its companion program are free, open source, and run
+locally on macOS, Linux, and Windows. Open WebBridge has no telemetry.
+
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/open-webbridge/hioldppfhhbhgnnopkemdndhbmpfdgdj)** ·
+**[Download the companion program](https://github.com/zhizuzhefu/open-webbridge/releases/latest)** ·
+**[Official setup guide](https://apps.zhizuzhefu.com/open-webbridge/)**
 
 This manual covers installation, configuration, the command-line interface, the
 full set of actions, common workflows, remote operation, and troubleshooting.
@@ -49,9 +52,8 @@ You — or your AI assistant — issue instructions with a single command,
 `open-webbridge call <action>`. Each instruction is carried out in your own
 browser, so the agent sees the same pages you would see, already signed in.
 
-Because the browser and the service run together on one machine and the service
-makes no outbound network connections, your browsing and data never leave your
-computer.
+The extension sends requested page data to the companion program over loopback.
+Your chosen AI agent controls how it processes tool results.
 
 ## 2. Key capabilities
 
@@ -153,8 +155,7 @@ to use `open-webbridge` in future shells.
 
 Choose one of the following:
 
-- **Chrome Web Store** (recommended; updates automatically): install the
-  Open WebBridge extension from its store listing.
+- **Chrome Web Store** (recommended; updates automatically): [install Open WebBridge](https://chromewebstore.google.com/detail/open-webbridge/hioldppfhhbhgnnopkemdndhbmpfdgdj).
 - **Manual install:** build the extension and load it unpacked.
 
   ```bash
@@ -534,8 +535,7 @@ a message telling you which side to update.
 
 ## 13. Security and privacy
 
-- The service runs entirely on your machine and makes no outbound connections by
-  default.
+- The extension connects to the local companion program, which checks GitHub for software updates.
 - It contains no analytics or usage reporting of any kind.
 - Every instruction requires the access token from your configuration file,
   which is readable only by your user account. This prevents other local programs

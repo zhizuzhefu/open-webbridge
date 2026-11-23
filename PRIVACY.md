@@ -1,6 +1,6 @@
 # Privacy Policy — Open WebBridge
 
-_Last updated: 2026-05-29_
+_Last updated: 2026-11-24_
 
 Open WebBridge is a local browser-automation tool consisting of a Chrome
 extension and a companion program (the "daemon") that runs on the same computer.
@@ -32,9 +32,9 @@ processing happens locally on your own machine.
 ## Network connections
 
 The extension connects **only** to the Open WebBridge daemon running on your own
-machine (the loopback address `127.0.0.1`). The daemon makes no outbound
-connections of its own except, when you explicitly run the update command, to
-GitHub to download a new version of the daemon.
+machine (the loopback address `127.0.0.1`). The daemon connects to GitHub to
+check for software updates and download them when requested or enabled.
+The AI agent you connect controls how it processes the data returned by the tool.
 
 If you choose to enable remote operation, you may direct the command interface to
 a daemon on another machine that **you** control; even then, no data is sent to
@@ -73,7 +73,7 @@ Questions or concerns: please open an issue at
 
 # 隐私政策 — Open WebBridge
 
-_最后更新:2026-05-29_
+_最后更新：2026-11-24_
 
 Open WebBridge 是一款本地浏览器自动化工具,由一个 Chrome 扩展和一个运行在同一台
 电脑上的配套程序(“守护进程”)组成。本政策说明本软件如何处理(以及不处理)你的数据。
@@ -99,8 +99,8 @@ Open WebBridge 是一款本地浏览器自动化工具,由一个 Chrome 扩展�
 ## 网络连接
 
 扩展**仅**连接到运行在你自己机器上的 Open WebBridge 守护进程(回环地址
-`127.0.0.1`)。守护进程自身不发起任何对外连接,唯一例外是:当你主动运行更新命令时,
-它会访问 GitHub 以下载新版本。
+`127.0.0.1`)。守护进程会访问 GitHub 检查软件更新，并在你主动更新或启用自动更新时下载新版本。
+你连接的 AI 助手决定如何处理工具返回的数据。
 
 若你选择启用远程操作,你可以把指令接口指向**你自己**控制的另一台机器上的守护进程;
 即便如此,也不会有任何数据发送给开发者或第三方。
