@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "Open WebBridge · AI Agent 控制浏览器"
+  },
+  "extensionDescription": {
+    "message": "让 AI Agent 控制你已登录的 Chrome 浏览器，读取网页、点击、填表和截图。免费开源，需安装本机配套程序。"
+  }
+}

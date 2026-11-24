@@ -15,7 +15,7 @@
 import { build } from "esbuild";
 import JavaScriptObfuscator from "javascript-obfuscator";
 import {
-  readFileSync, writeFileSync, mkdirSync, copyFileSync, rmSync, readdirSync,
+  readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync, rmSync, readdirSync,
 } from "fs";
 import { dirname, join, isAbsolute } from "path";
 import { fileURLToPath } from "url";
@@ -98,6 +98,7 @@ if (mode === "release") {
 // 3) Static assets.
 copyFileSync(p("popup.html"), d("popup.html"));
 copyFileSync(p("popup.css"), d("popup.css"));
+cpSync(p("_locales"), d("_locales"), { recursive: true });
 for (const f of readdirSync(p("icon"))) {
   if (f.endsWith(".png")) copyFileSync(p("icon", f), d("icon", f));
 }

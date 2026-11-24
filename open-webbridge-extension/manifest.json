@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Open WebBridge",
-  "version": "1.5.2",
-  "description": "Free, open-source Chrome automation for AI agents. Use your signed-in browser, with a local companion app.",
+  "name": "__MSG_extensionName__",
+  "version": "1.5.3",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
   "background": {
     "service_worker": "src/background.js",
     "type": "module"

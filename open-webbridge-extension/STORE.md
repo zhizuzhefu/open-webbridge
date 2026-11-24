@@ -69,13 +69,15 @@ restricts extension scripts and debugger access on the Web Store domain.
 ### Product details tab
 
 - **Category:** Developer Tools
-- **Default language:** English. Add Simplified Chinese as a localized description.
+- **Default language:** English. The extension package includes English and Simplified Chinese listing metadata. Enter each description under its matching locale.
 - **Icon:** `open-webbridge-extension/icon/128.png` (128×128)
 - **Screenshots:** at least one 1280×800 or 640×400 image
 - **Privacy policy URL:**
   `https://github.com/zhizuzhefu/open-webbridge/blob/main/PRIVACY.md`
 
-**Official website:** https://apps.zhizuzhefu.com/open-webbridge/
+**Homepage URL:** https://apps.zhizuzhefu.com/open-webbridge/
+
+For **Official URL**, select the verified `apps.zhizuzhefu.com` property when it appears in the dashboard.
 
 **Support URL:** https://github.com/zhizuzhefu/open-webbridge/issues
 
@@ -84,18 +86,21 @@ installs, uninstalls, and weekly users to compare the 28 days before and after
 the listing update. Use Search Console to check indexing, queries, and clicks
 for the official setup page.
 
-**Short description (from the manifest):**
+The package supplies the listing titles and summaries through `_locales`.
 
-> Free, open-source Chrome automation for AI agents. Use your signed-in browser, with a local companion app.
+| Locale | Title | Summary |
+|---|---|---|
+| English | Open WebBridge · AI Browser Control | Let AI agents control your signed-in Chrome tabs. Free, open-source browser automation with a local companion app. |
+| Simplified Chinese | Open WebBridge · AI Agent 控制浏览器 | 让 AI Agent 控制你已登录的 Chrome 浏览器，读取网页、点击、填表和截图。免费开源，需安装本机配套程序。 |
 
 **Detailed description (English):**
 
-> Open WebBridge is a free, open-source Chrome extension for AI browser automation. It lets an AI agent that can run shell commands use the desktop Chrome profile you already use, including sites where you are signed in.
+> Let an AI agent control the Chrome browser you already use. Open WebBridge is a free, open-source extension for browser automation in your signed-in Chrome tabs. It works with agents that can run local shell commands, including Codex CLI and Claude Code, when connected to the Open WebBridge companion program.
 >
 > WHAT YOU CAN DO
 >
-> • Read pages through an accessibility snapshot, click controls, fill forms, and navigate across tabs.
-> • Capture screenshots, export pages as PDF, and manage downloads.
+> • Open pages in your existing Chrome profile, read page structure, click controls, and fill forms.
+> • Use your existing login sessions to read a dashboard, export a report, or capture a screenshot or PDF.
 > • Attach comments to elements on a live page so your agent can find the exact control you want it to review.
 >
 > HOW TO GET STARTED
@@ -114,9 +119,9 @@ for the official setup page.
 
 **Detailed description (Simplified Chinese):**
 
-> Open WebBridge 是免费开源的 Chrome AI 浏览器自动化扩展。它让可以运行命令的 AI 助手使用你正在用的桌面版 Chrome，包括你已登录的网站。
+> 用 AI Agent 控制你正在用的 Chrome 浏览器。Open WebBridge 是免费开源的浏览器自动化扩展，可以使用你已登录的 Chrome 标签页。把扩展连接到本机配套程序后，Codex CLI、Claude Code 等能运行本地命令的助手就可以调用它。
 >
-> 可以读取网页、点击、填写表单、截图、导出 PDF 和管理下载。你还可以在真实网页的元素上添加评论，让助手找到你希望它检查的控件。
+> 可以读取网页、点击、填表、截图和导出 PDF。例如，让 AI 读取你已经登录的看板，或者导出报表。你也可以把评论标在具体网页控件上，让助手找到要检查的位置。
 >
 > 安装方法
 >
