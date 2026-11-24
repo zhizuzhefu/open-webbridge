@@ -10,7 +10,7 @@ locally on macOS, Linux, and Windows. Open WebBridge has no telemetry.
 
 **[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/open-webbridge/hioldppfhhbhgnnopkemdndhbmpfdgdj)** ·
 **[Download the companion program](https://github.com/zhizuzhefu/open-webbridge/releases/latest)** ·
-**[Official setup guide](https://apps.zhizuzhefu.com/open-webbridge/)**
+**[Official setup guide](https://apps.zhizuzhefu.com/open-webbridge/?lang=en)**
 
 This manual covers installation, configuration, the command-line interface, the
 full set of actions, common workflows, remote operation, and troubleshooting.

@@ -8,7 +8,7 @@ Chrome 扩展和配套程序均免费开源，在 macOS、Linux 和 Windows 上�
 
 **[从 Chrome 应用商店安装](https://chromewebstore.google.com/detail/open-webbridge/hioldppfhhbhgnnopkemdndhbmpfdgdj)** ·
 **[下载配套程序](https://github.com/zhizuzhefu/open-webbridge/releases/latest)** ·
-**[中文安装指南](https://apps.zhizuzhefu.com/open-webbridge/zh-cn/)**
+**[中文安装指南](https://apps.zhizuzhefu.com/open-webbridge/?lang=zh)**
 
 本手册涵盖安装、配置、命令行接口、完整的动作列表、常见工作流、远程操作与故障排查。
 

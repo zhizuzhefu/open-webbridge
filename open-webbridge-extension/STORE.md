@@ -82,7 +82,7 @@ restricts extension scripts and debugger access on the Web Store domain.
 Check the public listing after review. Use the Dashboard's impressions, daily
 installs, uninstalls, and weekly users to compare the 28 days before and after
 the listing update. Use Search Console to check indexing, queries, and clicks
-for both landing page URLs.
+for the official setup page.
 
 **Short description (from the manifest):**
 
@@ -104,7 +104,7 @@ for both landing page URLs.
 > 2. Install the free companion program on the same computer. macOS and Linux have an installer. Windows has x64 and ARM64 executables.
 > 3. Run open-webbridge url, paste the address into the extension, and click Connect. Run open-webbridge status to verify the connection.
 >
-> Installation and downloads: https://apps.zhizuzhefu.com/open-webbridge/
+> Installation and downloads: https://apps.zhizuzhefu.com/open-webbridge/?lang=en
 >
 > LOCAL CONNECTION AND OPEN SOURCE
 >
@@ -124,7 +124,7 @@ for both landing page URLs.
 > 2. 在同一台电脑上安装配套程序。macOS 和 Linux 可运行安装脚本，Windows 可下载 x64 或 ARM64 可执行文件。
 > 3. 运行 open-webbridge url，把地址粘贴到扩展并点击 Connect。用 open-webbridge status 确认连接。
 >
-> 中文安装说明和下载：https://apps.zhizuzhefu.com/open-webbridge/zh-cn/
+> 中文安装说明和下载：https://apps.zhizuzhefu.com/open-webbridge/?lang=zh
 >
 > 扩展通过本机回环地址连接配套程序，无遥测。Chrome 调试权限用于读取页面结构和执行你请求的操作。工具结果由你选用的 AI 助手处理。
 >
