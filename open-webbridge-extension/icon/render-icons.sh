@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
-# Regenerate the PNG icons from icon.svg (anti-aliased) using librsvg + sips.
-# icon.svg is the source of truth; the PNGs are derived artifacts.
+# Regenerate the Chrome icons from the full-resolution logo using ImageMagick.
 set -euo pipefail
 cd "$(dirname "$0")"
-command -v rsvg-convert >/dev/null || { echo "needs rsvg-convert (brew install librsvg)"; exit 1; }
-master="$(mktemp -t owb-icon).png"
-rsvg-convert -w 1024 -h 1024 icon.svg -o "$master"
-for s in 16 32 48 128; do
-  sips -z "$s" "$s" "$master" --out "${s}.png" >/dev/null
+for s in 16 32 48; do
+  magick source/logo.png -resize "${s}x${s}" "PNG32:${s}.png"
 done
-rm -f "$master"
-echo "regenerated 16/32/48/128 png from icon.svg"
+# The Chrome Web Store icon has a 96px artwork area and transparent padding.
+magick source/logo.png -resize 96x96 -background none -gravity center -extent 128x128 PNG32:128.png
+echo "regenerated 16/32/48/128 png from source/logo.png"
